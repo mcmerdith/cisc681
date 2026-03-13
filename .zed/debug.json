@@ -1,0 +1,20 @@
+// Project-local debug tasks
+//
+// For more documentation on how to configure debug tasks,
+// see: https://zed.dev/docs/debugger
+[
+  {
+    "label": "Uninformed Search",
+    "adapter": "Debugpy",
+    "program": "uninformed.py",
+    "args": ["problem1"],
+    "request": "launch",
+  },
+  {
+    "label": "Informed Search",
+    "adapter": "Debugpy",
+    "program": "informed.py",
+    "args": ["problem1"],
+    "request": "launch",
+  },
+]

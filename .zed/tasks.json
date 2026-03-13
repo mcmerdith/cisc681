@@ -1,0 +1,11 @@
+// Project tasks configuration. See https://zed.dev/docs/tasks for documentation.
+[
+  {
+    "label": "Uninformed Search",
+    "command": "python uninformed.py problem1",
+  },
+  {
+    "label": "Informed Search",
+    "command": "python informed.py problem1",
+  },
+]
