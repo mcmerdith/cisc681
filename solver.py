@@ -125,9 +125,10 @@ class Solver(ABC):
 
         if solved:
             cprint(f"{self.get_name()} solved in {self._iteration} iterations", "green")
-            cprint(f"{game.get_stats()}", "light_blue")
             if save_solution:
                 self._save_solution(game)
+            print()
+            cprint(f"{game.get_stats()}", "light_blue")
         else:
             cprint(f"Failed to solve within {max_iterations} iterations", "red")
 
