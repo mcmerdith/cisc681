@@ -148,17 +148,19 @@ class Solver(ABC):
             filenum += 1
             filename = f"{game.state_name}_{filenum}"
 
-        # write the statistics file
-        with open(make_path(filename, "_stats"), "w") as f:
-            f.write(f"Initial state\n{game.initial_state_str}\n\n")
-            f.write(f"Solved in {self._iteration} iterations\n{str(game)}\n")
-            f.write(f"{game.get_stats()}\n")
-            f.write(f"{self.get_stats()}\n")
-
         # write the solution file
         with open(make_path(filename), "w") as f:
             f.writelines(
                 f"{action[0]} {action[1]}\n" for action in game.game_state.actions
             )
 
-        cprint(f"Saved solution to {filename}", "light_blue")
+        cprint(f"Saved solution to {make_path(filename)}", "light_blue")
+
+        # write the statistics file
+        with open(make_path(filename, "_stats"), "w") as f:
+            f.write(f"Initial state\n{game.initial_state_str}\n\n")
+            f.write(f"Solved in {self._iteration} iterations\n{str(game)}\n\n")
+            f.write(f"{game.get_stats()}\n")
+            f.write(f"{self.get_stats()}\n")
+
+        cprint(f"Saved statistics to {make_path(filename, '_stats')}", "light_blue")
