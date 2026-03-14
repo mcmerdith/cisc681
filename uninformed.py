@@ -1,4 +1,5 @@
 import argparse
+import heapq
 from random import randint
 
 from game import Game, GameState
@@ -33,15 +34,15 @@ class UniformCostSearch(Solver):
     An implementation of the uniform cost search algorithm
     """
 
-    expanded: dict[GameState, GameState] = {}
-    """All states that have been previously expanded. Each state is mapped to itself"""
+    expanded: dict[GameState, float] = {}
+    """All states that have been previously expanded"""
 
-    fringe: dict[GameState, GameState] = {}
-    """All states that are currently in the fringe. Each state is mapped to itself"""
+    fringe: list[GameState] = []
+    """All states that are currently in the fringe"""
 
     def get_stats(self):
-        min_fringe = min(self.fringe.values(), key=lambda s: s.cost)
-        max_fringe = max(self.fringe.values(), key=lambda s: s.cost)
+        min_fringe = min(self.fringe)
+        max_fringe = max(self.fringe)
 
         return "\n".join(
             [
@@ -53,32 +54,33 @@ class UniformCostSearch(Solver):
             ]
         )
 
-    def best_fringe_node(self):
-        """The lowest cost state currently on the fringe"""
+    def is_expanded(self, state: GameState) -> bool:
+        return state in self.expanded and self.expanded[state] < state.cost
 
-        return min(self.fringe.values(), key=lambda s: s.cost)
+    def pop_best_state(self) -> GameState:
+        while True:
+            # restore the best fringe node as the current game state
+            best_state = heapq.heappop(self.fringe)
+
+            # select a node that has either not been expanded or has a lower cost than what was expanded
+            if not self.is_expanded(best_state):
+                break
+        return best_state
 
     def expand(self, game: Game):
         """Expand the best fringe node and add its children to the fringe"""
 
-        # restore the best fringe node as the current game state
-        game.restore_snapshot(self.best_fringe_node())
+        best_state = self.pop_best_state()
+        self.expanded[best_state] = best_state.cost
+        game.restore_snapshot(best_state)
 
         # if this state is solved, do nothing and let control fall back to the base solver
         if game.solved():
             return
 
-        # remove this state from the fringe and add it to the expanded set
-        self.fringe.pop(game.game_state)
-        self.expanded[game.game_state] = game.snapshot()
-
         # compute all possible moves from the current state
         for from_idx in range(0, len(game.game_state.bolts)):
             for to_idx in range(0, len(game.game_state.bolts)):
-                # ignore useless moves
-                if from_idx == to_idx:
-                    continue
-
                 # perform a dry-run to calculate the validity of the move
                 moved = game.swap_nut(from_idx, to_idx, dry_run=True)
 
@@ -86,34 +88,20 @@ class UniformCostSearch(Solver):
                 if moved == 0:
                     continue
 
-                # success, update cost and take a snapshot
-                game.next_game_state.cost += 4 / moved
-                snapshot = game.snapshot(next_state=True)
-
-                # prune nodes that don't improve on something already expanded
-                if snapshot in self.expanded:
-                    if self.expanded[snapshot].cost < snapshot.cost:
-                        continue
-
-                # replace nodes on the fringe with better ones, or prune them
-                if snapshot in self.fringe:
-                    if snapshot.cost < self.fringe[snapshot].cost:
-                        self.fringe.pop(snapshot)
-                    else:
-                        continue
+                # skip already expanded states
+                if self.is_expanded(game.next_game_state):
+                    continue
 
                 # add this state to the fringe
-                self.fringe[snapshot] = snapshot
+                game.next_game_state.cost += 4 / moved
+                snapshot = game.snapshot(next_state=True)
+                heapq.heappush(self.fringe, snapshot)
 
     def iteration(self, game: Game):
         # initial state
         if self._iteration == 0:
             snapshot = game.snapshot()
-            self.fringe[snapshot] = snapshot
-
-        # fail if we run out of states to expand somehow
-        if len(self.fringe) == 0:
-            raise RuntimeError("Unsolvable problem!")
+            self.fringe = [snapshot]
 
         # continue to expand the fringe
         self.expand(game)
