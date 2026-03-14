@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
 from functools import reduce
 from typing import Callable
@@ -34,44 +35,61 @@ class Bolt:
 
         return [i for i, slot in enumerate(self._slots) if slot != 0]
 
-    def has_space(self, count: int) -> bool:
-        """The bolt has space if there are more than `count` empty slots (0's)"""
+    def can_accept_nuts(self, new_nuts: tuple[int, int]) -> bool:
+        """Nuts can only be placed on top of matching colors, or if the bolt is empty"""
 
-        return count <= 0 or (count <= len(self._slots) and self._slots[count - 1] == 0)
+        count, color = new_nuts
+
+        # can't have no nuts
+        if count <= 0:
+            return False
+
+        # can't have more than 4 nuts
+        if count > 4:
+            return False
+
+        # can't push into a non-empty slot
+        if not self._slots[count - 1] == 0:
+            return False
+
+        nuts = self.nuts()
+
+        # either there's no nuts, or the top one matches
+        return len(nuts) == 0 or self._slots[nuts[0]] == color
 
     def solved(self) -> bool:
         """The bolt is solved if all nuts are the same color, or there are no nuts"""
 
         return len(set(self._slots)) <= 1
 
-    def push(self, nuts: list[int]) -> bool:
+    def push(self, nuts: tuple[int, int]) -> bool:
         """
         Push nuts onto the bolt.
+
+        nuts is a tuple of (count, color).
 
         Returns True if the push was successful, False otherwise.
         """
 
+        count, color = nuts
+
+        # pushing nothing is a no-op
+        if count <= 0 or color <= 0:
+            return True
+
+        if not self.can_accept_nuts(nuts):
+            return False
+
         # save state
         self._previous_slots = self._slots.copy()
 
-        # remove any 0's from the nuts list
-        nuts = [nut for nut in nuts if nut != 0]
-        if len(nuts) == 0:
-            # pushing nothing is a no-op
-            return True
-
-        # check for space on the bolt
-        if not self.has_space(len(nuts)):
-            return False
-
         # push the nuts onto the bolt, collapsing any empty spaces
-        self._slots[0 : len(nuts)] = nuts
+        self._slots[0:count] = [color for i in range(count)]
         self.collapse_spaces()
 
-        # return if the resulting state is valid
-        return self.validate()
+        return True
 
-    def pop(self) -> list[int]:
+    def pop(self) -> tuple[int, int]:
         """
         Pop all nuts of one color from the top of the bolt.
 
@@ -84,20 +102,19 @@ class Bolt:
         # get the nuts to pop
         nuts = self.nuts()
         if len(nuts) == 0:
-            return []
+            return (0, 0)
 
         # starting from the first nut, pop all matching nuts, replacing with 0s
-        idx = nuts[0]
-        popped = []
-        while idx < 4:
-            if len(popped) > 0 and self._slots[idx] != popped[0]:
+        count = 0
+        color = self._slots[nuts[0]]
+        for i in range(nuts[0], 4):
+            if count != 0 and self._slots[i] != color:
                 break
-            popped.append(self._slots[idx])
-            self._slots[idx] = 0
-            idx += 1
+            count += 1
+            self._slots[i] = 0
 
         # return the resulting popped nuts
-        return popped
+        return (count, color)
 
     def undo(self):
         """
@@ -107,10 +124,6 @@ class Bolt:
         """
 
         self._slots = self._previous_slots.copy()
-
-    def copy(self) -> "Bolt":
-        """Returns a copy of the bolt"""
-        return Bolt(self._slots.copy())
 
     def collapse_spaces(self) -> None:
         """Collapse any empty spaces between nuts and the bottom of the bolt"""
@@ -162,7 +175,7 @@ class Bolt:
         return True
 
 
-@dataclass
+@dataclass()
 class GameState:
     """
     Represents the state of the game including the bolts,
@@ -187,12 +200,6 @@ class GameState:
         """The game is solved if all bolts are solved"""
         return all(bolt.solved() for bolt in self.bolts)
 
-    def copy(self):
-        """Returns a copy of the game state"""
-        return GameState(
-            [bolt.copy() for bolt in self.bolts], self.actions.copy(), self.cost
-        )
-
     def __hash__(self):
         """
         The GameState hash is only a function of the bolts.
@@ -200,6 +207,18 @@ class GameState:
         Actions and cost are considered metadata and are not included.
         """
         return hash(tuple(slot for bolt in self.bolts for slot in bolt._slots))
+
+    def __gt__(self, other: "GameState") -> bool:
+        return self.cost > other.cost
+
+    def __ge__(self, other: "GameState") -> bool:
+        return self.cost >= other.cost
+
+    def __lt__(self, other: "GameState") -> bool:
+        return self.cost < other.cost
+
+    def __le__(self, other: "GameState") -> bool:
+        return self.cost <= other.cost
 
 
 # tests to ensure GameState equality, inequality, and hash work correctly
@@ -235,7 +254,7 @@ class Game:
 
     def __post_init__(self):
         self.initial_state_str = str(self)
-        self.next_game_state = self.game_state.copy()
+        self.next_game_state = deepcopy(self.game_state)
 
     def get_stats(self) -> str:
         """
@@ -259,15 +278,15 @@ class Game:
         and cost, which can be used to restore the game state later.
         """
 
-        return self.next_game_state.copy() if next_state else self.game_state.copy()
+        return deepcopy(self.next_game_state if next_state else self.game_state)
 
     def restore_snapshot(self, snapshot: GameState) -> None:
         """
         Restore the game state from a snapshot.
         """
 
-        self.game_state = snapshot.copy()
-        self.next_game_state = self.game_state.copy()
+        self.game_state = deepcopy(snapshot)
+        self.next_game_state = deepcopy(snapshot)
 
     def swap_nut(self, bolt_from: int, bolt_to: int, dry_run=False) -> int:
         """
@@ -289,18 +308,19 @@ class Game:
 
         # select either the current state or create a dry-run copy
         if dry_run:
-            self.next_game_state = self.game_state.copy()
+            self.next_game_state = deepcopy(self.game_state)
             state = self.next_game_state
         else:
             state = self.game_state
 
         # attempt to pop nuts off the source bolt
-        removed = state.bolts[bolt_from].pop()
-        if len(removed) == 0:
+        nuts = state.bolts[bolt_from].pop()
+        count, _ = nuts
+        if count == 0:
             return 0
 
         # attempt to push the popped nuts onto the target bolt
-        if not (state.bolts[bolt_to].push(removed)):
+        if not (state.bolts[bolt_to].push(nuts)):
             # undo the pop if push fails
             state.bolts[bolt_from].undo()
             return 0
@@ -310,10 +330,10 @@ class Game:
 
         # reset the dry-run state if a successful non-dry-run swap occurs
         if not dry_run:
-            self.next_game_state = self.game_state.copy()
+            self.next_game_state = self.game_state
 
         # return the number of nuts swapped
-        return len(removed)
+        return count
 
     def solved(self) -> bool:
         """
@@ -340,7 +360,6 @@ class Game:
         # format the board as a list of strings
         board: list[list[int]] = self.visualize().tolist()
         rows = [" ".join(formatter(nut) for nut in row) for row in board]
-        separator = "-" * (2 * len(self.game_state.bolts) - 1)
 
         # build the action indicator, if any
         action = self.game_state.last_action()
@@ -372,10 +391,12 @@ class Game:
                 action_indicator = " " * idx_to + "*" + " " * (right_side - idx_to - 1)
 
         else:
-            # no action - draw separator
-            action_indicator = separator
+            # no action
+            action_indicator = " " * (2 * len(self.game_state.bolts) - 1)
 
-        return "\n".join([action_indicator, *rows, separator])
+        return "\n".join(
+            [action_indicator, *rows, "-" * (2 * len(self.game_state.bolts) - 1)]
+        )
 
     def colored_string(self) -> str:
         """
