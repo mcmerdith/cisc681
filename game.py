@@ -24,12 +24,6 @@ class Bolt:
     _slots: list[int] = field(default_factory=list)
     """The slots on the bolt, with 0 indicating an empty space"""
 
-    _previous_slots: list[int] = field(init=False, hash=False, compare=False)
-    """The previous state of the slots, used for undoing moves"""
-
-    def __post_init__(self):
-        self._previous_slots = self._slots.copy()
-
     def nuts(self) -> list[int]:
         """Get the indices of nuts on the bolt"""
 
@@ -61,69 +55,6 @@ class Bolt:
         """The bolt is solved if all nuts are the same color, or there are no nuts"""
 
         return len(set(self._slots)) <= 1
-
-    def push(self, nuts: tuple[int, int]) -> bool:
-        """
-        Push nuts onto the bolt.
-
-        nuts is a tuple of (count, color).
-
-        Returns True if the push was successful, False otherwise.
-        """
-
-        count, color = nuts
-
-        # pushing nothing is a no-op
-        if count <= 0 or color <= 0:
-            return True
-
-        if not self.can_accept_nuts(nuts):
-            return False
-
-        # save state
-        self._previous_slots = self._slots.copy()
-
-        # push the nuts onto the bolt, collapsing any empty spaces
-        self._slots[0:count] = [color for i in range(count)]
-        self.collapse_spaces()
-
-        return True
-
-    def pop(self) -> tuple[int, int]:
-        """
-        Pop all nuts of one color from the top of the bolt.
-
-        Returns the nuts that were popped, or an empty list if the bolt is empty.
-        """
-
-        # save state
-        self._previous_slots = self._slots.copy()
-
-        # get the nuts to pop
-        nuts = self.nuts()
-        if len(nuts) == 0:
-            return (0, 0)
-
-        # starting from the first nut, pop all matching nuts, replacing with 0s
-        count = 0
-        color = self._slots[nuts[0]]
-        for i in range(nuts[0], 4):
-            if count != 0 and self._slots[i] != color:
-                break
-            count += 1
-            self._slots[i] = 0
-
-        # return the resulting popped nuts
-        return (count, color)
-
-    def undo(self):
-        """
-        Undo the last operation by restoring the previous state.
-
-        Calling more than once will have no additional effect.
-        """
-
-        self._slots = self._previous_slots.copy()
 
     def collapse_spaces(self) -> None:
         """Collapse any empty spaces between nuts and the bottom of the bolt"""
@@ -228,6 +159,10 @@ test_state_B = GameState([Bolt([0, 0, 0, 0])], [(1, 4)], 3.0)
 test_state_C = GameState([Bolt([0, 1, 1, 3])], [], 0.0)
 assert test_state_A == test_state_B, "GameState equality failed"
 assert test_state_A != test_state_C, "GameState inequality failed"
+assert test_state_A < test_state_B, "GameState comparison failed"
+assert test_state_A <= test_state_C, "GameState comparison failed"
+assert test_state_B > test_state_A, "GameState comparison failed"
+assert test_state_C >= test_state_A, "GameState comparison failed"
 assert test_state_A.solved(), "GameState solve check failed"
 assert not test_state_C.solved(), "GameState solve check failed"
 assert hash(test_state_A) == hash(test_state_B), "GameState hash check failed"
@@ -244,17 +179,11 @@ class Game:
     game_state: GameState
     """The current game state"""
 
-    next_game_state: GameState = field(
-        init=False, repr=False, hash=False, compare=False
-    )
-    """The result of a dry-run move, or the current state if no move has been dry-run"""
-
     initial_state_str: str = field(init=False, hash=False, compare=False)
     """A string representation of the initial game state, used for visualization"""
 
     def __post_init__(self):
         self.initial_state_str = str(self)
-        self.next_game_state = deepcopy(self.game_state)
 
     def get_stats(self) -> str:
         """
@@ -270,7 +199,7 @@ class Game:
             ]
         )
 
-    def snapshot(self, next_state=False) -> GameState:
+    def snapshot(self) -> GameState:
         """
         Create a snapshot of the current (or next) game state.
 
@@ -278,7 +207,7 @@ class Game:
         and cost, which can be used to restore the game state later.
         """
 
-        return deepcopy(self.next_game_state if next_state else self.game_state)
+        return deepcopy(self.game_state)
 
     def restore_snapshot(self, snapshot: GameState) -> None:
         """
@@ -286,51 +215,47 @@ class Game:
         """
 
         self.game_state = deepcopy(snapshot)
-        self.next_game_state = deepcopy(snapshot)
 
-    def swap_nut(self, bolt_from: int, bolt_to: int, dry_run=False) -> int:
+    def swap_nuts(self, bolt_from_idx: int, bolt_to_idx: int) -> int:
         """
-        Swap a nut from one bolt to another.
-
-        If `dry_run` is True, the swap is performed on a copy of the bolts
-        and stored to `next_game_state`, leaving the current game state unchanged.
+        Swap nuts from one bolt to another.
 
         Returns the number of bolts moved. A value of 0 indicates a failed swap.
         """
 
         # validate inputs
         if (
-            bolt_from == bolt_to
-            or bolt_from < 0
-            or bolt_to >= len(self.game_state.bolts)
+            bolt_from_idx == bolt_to_idx
+            or bolt_from_idx < 0
+            or bolt_to_idx >= len(self.game_state.bolts)
         ):
             return 0
 
-        # select either the current state or create a dry-run copy
-        if dry_run:
-            self.next_game_state = deepcopy(self.game_state)
-            state = self.next_game_state
-        else:
-            state = self.game_state
-
-        # attempt to pop nuts off the source bolt
-        nuts = state.bolts[bolt_from].pop()
-        count, _ = nuts
-        if count == 0:
+        # check what would be popped from the source bolt
+        bolt_from = self.game_state.bolts[bolt_from_idx]
+        bolt_to = self.game_state.bolts[bolt_to_idx]
+        nuts = bolt_from.nuts()
+        if len(nuts) == 0:
             return 0
 
-        # attempt to push the popped nuts onto the target bolt
-        if not (state.bolts[bolt_to].push(nuts)):
-            # undo the pop if push fails
-            state.bolts[bolt_from].undo()
-            return 0
+        # starting from the first nut, pop all matching nuts, replacing with 0s
+        count = 1
+        first = nuts[0]
+        color = bolt_from._slots[first]
+        for i in range(first + 1, 4):
+            if bolt_from._slots[i] != color:
+                break
+            count += 1
 
-        # save the action to the game state
-        state.actions.append((bolt_from, bolt_to))
+        if not bolt_to.can_accept_nuts((count, color)):
+            return False
 
-        # reset the dry-run state if a successful non-dry-run swap occurs
-        if not dry_run:
-            self.next_game_state = self.game_state
+        # swap the nuts, collapsing any empty spaces
+        bolt_from._slots[first : first + count] = [0] * count
+        bolt_to._slots[0:count] = [color] * count
+        bolt_to.collapse_spaces()
+
+        self.game_state.actions.append((bolt_from_idx, bolt_to_idx))
 
         # return the number of nuts swapped
         return count

@@ -22,7 +22,7 @@ class GamblersSearch(Solver):
                 continue
 
             # repeat until a valid move is made
-            moved = game.swap_nut(from_idx, to_idx)
+            moved = game.swap_nuts(from_idx, to_idx)
             if moved:
                 break
 
@@ -72,29 +72,39 @@ class UniformCostSearch(Solver):
 
         best_state = self.pop_best_state()
         self.expanded[best_state] = best_state.cost
-        game.restore_snapshot(best_state)
 
         # if this state is solved, do nothing and let control fall back to the base solver
-        if game.solved():
+        if best_state.solved():
+            game.restore_snapshot(best_state)
             return
 
+        changed = False
         # compute all possible moves from the current state
         for from_idx in range(0, len(game.game_state.bolts)):
             for to_idx in range(0, len(game.game_state.bolts)):
+                if changed:
+                    # optimization to reduce the number of calls to `deepcopy`
+                    game.restore_snapshot(best_state)
+                    changed = False
+
                 # perform a dry-run to calculate the validity of the move
-                moved = game.swap_nut(from_idx, to_idx, dry_run=True)
+                moved = game.swap_nuts(from_idx, to_idx)
 
                 # ignore failed moves
                 if moved == 0:
                     continue
 
                 # skip already expanded states
-                if self.is_expanded(game.next_game_state):
+                if self.is_expanded(game.game_state):
                     continue
 
+                changed = True
+
+                # increase state cost based on the number of nuts moved
+                game.game_state.cost += 4 / moved
+
                 # add this state to the fringe
-                game.next_game_state.cost += 4 / moved
-                snapshot = game.snapshot(next_state=True)
+                snapshot = game.snapshot()
                 heapq.heappush(self.fringe, snapshot)
 
     def iteration(self, game: Game):
@@ -116,7 +126,7 @@ def main():
     args = parser.parse_args()
     game = Game.from_state(args.state_file)
     uniform_cost = UniformCostSearch()
-    uniform_cost.solve(game, save_solution=True)
+    uniform_cost.solve(game, save_solution=False)
 
 
 if __name__ == "__main__":
