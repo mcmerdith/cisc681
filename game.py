@@ -118,7 +118,7 @@ class Bolt:
         return True
 
 
-@dataclass
+@dataclass(eq=False)
 class GameState:
     """
     Represents the state of the game including the bolts,
@@ -157,6 +157,11 @@ class GameState:
         Actions and cost are considered metadata and are not included.
         """
         return hash(tuple(slot for bolt in self.bolts for slot in bolt._slots))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, GameState):
+            return False
+        return [i in other.bolts for i in self.bolts]
 
     def __gt__(self, other: "GameState") -> bool:
         return self.heuristic_cost() > other.heuristic_cost()
