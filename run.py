@@ -154,10 +154,12 @@ def replay_solutions(
         ]
         for state in states:
             solutions = [
-                solution for solution in all_solutions if solution.startswith(state)
+                solution
+                for solution in all_solutions
+                if solution.split(".")[0] == state
             ]
             if len(solutions) == 0:
-                cprint(f"No solutions found for state {solver_name}/{state}", "red")
+                cprint(f"No solutions found for {solver_name}/{state}", "red")
                 continue
             for solution_name in solutions:
                 solve(
