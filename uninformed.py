@@ -94,11 +94,11 @@ class UniformCostSearch(Solver):
                 if moved == 0:
                     continue
 
+                changed = True
+
                 # skip already expanded states
                 if self.is_expanded(game.game_state):
                     continue
-
-                changed = True
 
                 # increase state cost based on the number of nuts moved
                 game.game_state.cost += 4 / moved
@@ -123,10 +123,21 @@ def main():
         "state_file",
         help="The name of the game state file to load, excluding the extension",
     )
+    parser.add_argument(
+        "--print-state",
+        action="store_true",
+        help="Print the state after each move",
+    )
+    parser.add_argument(
+        "--no-save",
+        action="store_false",
+        help="Do not save the solution",
+        dest="save_solution",
+    )
     args = parser.parse_args()
     game = Game.from_state(args.state_file)
-    uniform_cost = UniformCostSearch()
-    uniform_cost.solve(game, save_solution=False)
+    uniform_cost = UniformCostSearch(print_steps=args.print_state)
+    uniform_cost.solve(game, save_solution=args.save_solution)
 
 
 if __name__ == "__main__":
