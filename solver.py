@@ -151,31 +151,24 @@ class Solver(ABC):
         out_dir = path.join("solutions", self.get_name())
         makedirs(path.join(out_dir, "stats"), exist_ok=True)
 
-        def make_path(name, *paths: str):
-            return path.join(out_dir, *paths, name + ".txt")
-
-        filenum = 0
-        filename = f"{game.state_name}_{filenum}"
-
-        while path.exists(make_path(filename)):
-            filenum += 1
-            filename = f"{game.state_name}_{filenum}"
+        solution_file = path.join(out_dir, game.state_name + ".txt")
+        stats_file = path.join(out_dir, "stats", game.state_name + ".txt")
 
         # write the solution file
-        with open(make_path(filename), "w") as f:
+        with open(solution_file, "w") as f:
             f.writelines(
                 f"{action[0] + 1} {action[1] + 1}\n"
                 for action in game.game_state.actions
             )
 
-        cprint(f"Saved solution to {make_path(filename)}", "light_blue")
+        cprint(f"Saved solution to {solution_file}", "light_blue")
 
         # write the statistics file
-        with open(make_path(filename, "stats"), "w") as f:
+        with open(stats_file, "w") as f:
             f.write(f"Initial state\n{game.initial_state_str}\n\n")
             f.write(f"Solution\n{str(game)}\n\n")
             f.write(f"Solved in {self._iteration} iterations\n")
             f.write(f"{game.get_stats()}\n")
             f.write(f"{self.get_stats()}\n")
 
-        cprint(f"Saved statistics to {make_path(filename, 'stats')}", "light_blue")
+        cprint(f"Saved statistics to {stats_file}", "light_blue")

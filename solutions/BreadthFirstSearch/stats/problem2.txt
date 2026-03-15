@@ -16,7 +16,7 @@ Solution
 
 Solved in 290 iterations
 Total cost: 6.00
-Time taken: 0.13s
+Time taken: 0.12s
 Expanded 290 states
 Fringe size: 387 states
 Max fringe size: 391 states
