@@ -10,7 +10,8 @@ class Replay(Solver):
     solver_name: str | None = None
     solution_name: str | None = None
 
-    _solution: list[tuple[int, int]] = field(default_factory=list, init=False)
+    _solution_path: str = field(init=False)
+    _solution: list[tuple[int, int]] = field(init=False)
 
     def __post_init__(self):
         if self.solver_name is None:
@@ -21,11 +22,11 @@ class Replay(Solver):
         self.print_steps = True
         self.step_delay_ms = 1000
 
-        solution_path = os.path.join("solutions", self.solver_name, self.solution_name)
-        if not os.path.exists(solution_path):
-            raise ValueError(f"{solution_path} does not exist")
+        self._solution_path = os.path.join("solutions", self.solver_name, self.solution_name)
+        if not os.path.exists(self._solution_path):
+            raise ValueError(f"{self._solution_path} does not exist")
 
-        with open(solution_path, "r") as f:
+        with open(self._solution_path, "r") as f:
             self._moves = [
                 tuple(int(idx) for idx in line.strip().split())
                 for line in f.readlines()
@@ -37,7 +38,7 @@ class Replay(Solver):
                 )
 
     def get_name(self) -> str:
-        return f"Replay({self.solver_name})"
+        return f"Replay({self._solution_path})"
 
     def iteration(self, game: Game) -> bool:
         if self._iteration == 0:
