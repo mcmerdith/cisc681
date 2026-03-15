@@ -369,7 +369,7 @@ class Game:
         bolts = np.array([np.full(4, i + 1) for i in range(bolt_count - min_empty)])
         bolts = permutation(bolts.ravel()).reshape(bolts.shape)
 
-        return Game.from_state("random", bolts.tolist(), bolt_count)
+        return Game.from_state(f"random{bolt_count}", bolts.tolist(), bolt_count)
 
     @staticmethod
     def from_state(name: str, state: list[list[int]], n_bolts: int) -> "Game":

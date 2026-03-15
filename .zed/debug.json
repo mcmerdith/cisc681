@@ -3,25 +3,39 @@
 // For more documentation on how to configure debug tasks,
 // see: https://zed.dev/docs/debugger
 [
-  {
-    "label": "Uninformed Search",
-    "adapter": "Debugpy",
-    "program": "run.py",
-    "args": ["--solvers", "bfs", "--states", "problem1"],
-    "request": "launch",
-  },
-  {
-    "label": "Informed Search (IDA*)",
-    "adapter": "Debugpy",
-    "program": "run.py",
-    "args": ["--solvers", "idastar", "--states", "problem1"],
-    "request": "launch",
-  },
-  {
-    "label": "Informed Search (A*)",
-    "adapter": "Debugpy",
-    "program": "run.py",
-    "args": ["--solvers", "astar", "--states", "problem1"],
-    "request": "launch",
-  },
+    {
+        "label": "Uninformed Search",
+        "adapter": "Debugpy",
+        "program": "run.py",
+        "args": ["--no-save", "--solvers", "bfs", "--states", "problem1"],
+        "request": "launch"
+    },
+    {
+        "label": "Informed Search (IDA*)",
+        "adapter": "Debugpy",
+        "program": "run.py",
+        "args": ["--no-save", "--solvers", "idastar", "--states", "problem1"],
+        "request": "launch"
+    },
+    {
+        "label": "Informed Search (IDA* Random State)",
+        "adapter": "Debugpy",
+        "program": "run.py",
+        "args": ["--no-save", "--solvers", "idastar", "--random", "9"],
+        "request": "launch"
+    },
+    {
+        "label": "Informed Search (A*)",
+        "adapter": "Debugpy",
+        "program": "run.py",
+        "args": ["--no-save", "--solvers", "astar", "--states", "problem1"],
+        "request": "launch"
+    },
+    {
+        "label": "Informed Search (A* Random State)",
+        "adapter": "Debugpy",
+        "program": "run.py",
+        "args": ["--no-save", "--solvers", "astar", "--random", "9"],
+        "request": "launch"
+    }
 ]
