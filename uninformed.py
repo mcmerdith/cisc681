@@ -1,5 +1,7 @@
 import argparse
 import heapq
+from collections import deque
+from dataclasses import dataclass, field
 from random import randint
 
 from game import Game, GameState
@@ -29,41 +31,37 @@ class GamblersSearch(Solver):
         game.game_state.cost += 4 / moved
 
 
-class UniformCostSearch(Solver):
+@dataclass
+class BreadthFirstSearch(Solver):
     """
     An implementation of the uniform cost search algorithm
     """
 
-    expanded: dict[GameState, float] = {}
+    visited: set[GameState] = field(default_factory=set)
     """All states that have been previously expanded"""
 
-    fringe: list[GameState] = []
+    fringe: deque[GameState] = field(default_factory=deque)
     """All states that are currently in the fringe"""
 
     def get_stats(self):
-        min_fringe = min(self.fringe)
-        max_fringe = max(self.fringe)
-
         return "\n".join(
             [
                 super().get_stats(),
-                f"Expanded {len(self.expanded)} states",
+                f"Expanded {len(self.visited)} states",
                 f"Fringe: {len(self.fringe)} states",
-                f"  Min: {min_fringe.cost:.2f} ({len(min_fringe.actions)} steps)",
-                f"  Max: {max_fringe.cost:.2f} ({len(max_fringe.actions)} steps)",
             ]
         )
-
-    def is_expanded(self, state: GameState) -> bool:
-        return state in self.expanded and self.expanded[state] < state.cost
 
     def pop_best_state(self) -> GameState:
         while True:
             # restore the best fringe node as the current game state
-            best_state = heapq.heappop(self.fringe)
+            try:
+                best_state = self.fringe.popleft()
+            except IndexError:
+                raise RuntimeError("Unsolvable problem!")
 
-            # select a node that has either not been expanded or has a lower cost than what was expanded
-            if not self.is_expanded(best_state):
+            # select a node that has not been expanded
+            if best_state not in self.visited:
                 break
         return best_state
 
@@ -71,14 +69,14 @@ class UniformCostSearch(Solver):
         """Expand the best fringe node and add its children to the fringe"""
 
         best_state = self.pop_best_state()
-        self.expanded[best_state] = best_state.cost
+        self.visited.add(best_state)
 
         # if this state is solved, do nothing and let control fall back to the base solver
         if best_state.solved():
             game.restore_snapshot(best_state)
             return
 
-        changed = False
+        changed = True
         # compute all possible moves from the current state
         for from_idx in range(0, len(game.game_state.bolts)):
             for to_idx in range(0, len(game.game_state.bolts)):
@@ -87,7 +85,6 @@ class UniformCostSearch(Solver):
                     game.restore_snapshot(best_state)
                     changed = False
 
-                # perform a dry-run to calculate the validity of the move
                 moved = game.swap_nuts(from_idx, to_idx)
 
                 # ignore failed moves
@@ -97,21 +94,21 @@ class UniformCostSearch(Solver):
                 changed = True
 
                 # skip already expanded states
-                if self.is_expanded(game.game_state):
+                if game.game_state in self.visited:
                     continue
 
-                # increase state cost based on the number of nuts moved
-                game.game_state.cost += 4 / moved
+                # not actually used other than for stats
+                game.game_state.cost += 1
 
                 # add this state to the fringe
                 snapshot = game.snapshot()
-                heapq.heappush(self.fringe, snapshot)
+                self.fringe.append(snapshot)
 
     def iteration(self, game: Game):
         # initial state
         if self._iteration == 0:
             snapshot = game.snapshot()
-            self.fringe = [snapshot]
+            self.fringe = deque([snapshot])
 
         # continue to expand the fringe
         self.expand(game)
@@ -136,8 +133,8 @@ def main():
     )
     args = parser.parse_args()
     game = Game.from_state_file(args.state_file)
-    uniform_cost = UniformCostSearch(print_steps=args.print_state)
-    uniform_cost.solve(game, save_solution=args.save_solution)
+    breadth_first = BreadthFirstSearch(print_steps=args.print_state)
+    breadth_first.solve(game, save_solution=args.save_solution)
 
 
 if __name__ == "__main__":
