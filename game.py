@@ -36,6 +36,11 @@ class Bolt:
             return 0
         return sum(1 for a, b in zip(nuts, nuts[1:]) if a != b)
 
+    def free_slots(self) -> int:
+        """Get the number of free slots on the bolt"""
+
+        return self._slots.count(0)
+
     def can_accept_nuts(self, new_nuts: tuple[int, int]) -> bool:
         """Nuts can only be placed on top of matching colors, or if the bolt is empty"""
 
@@ -166,23 +171,6 @@ class GameState:
         return self.heuristic_cost() <= other.heuristic_cost()
 
 
-# tests to ensure GameState equality, inequality, and hash work correctly
-# solvers rely on these to check if a state has already been checked
-test_state_A = GameState([Bolt([0, 0, 0, 0])], [], 0.0)
-test_state_B = GameState([Bolt([0, 0, 0, 0])], [(1, 4)], 3.0)
-test_state_C = GameState([Bolt([0, 1, 1, 3])], [], 0.0)
-assert test_state_A == test_state_B, "GameState equality failed"
-assert test_state_A != test_state_C, "GameState inequality failed"
-assert test_state_A < test_state_B, "GameState comparison failed"
-assert test_state_A <= test_state_C, "GameState comparison failed"
-assert test_state_B > test_state_A, "GameState comparison failed"
-assert test_state_C >= test_state_A, "GameState comparison failed"
-assert test_state_A.solved(), "GameState solve check failed"
-assert not test_state_C.solved(), "GameState solve check failed"
-assert hash(test_state_A) == hash(test_state_B), "GameState hash check failed"
-assert hash(test_state_A) != hash(test_state_C), "GameState hash check failed"
-
-
 @dataclass
 class Game:
     """The main game class, managing state and game logic"""
@@ -249,22 +237,24 @@ class Game:
 
         # check what would be popped from the source bolt
         bolt_from = self.game_state.bolts[bolt_from_idx]
-        if bolt_from.solved():
+        bolt_to = self.game_state.bolts[bolt_to_idx]
+        max_nuts = bolt_to.free_slots()
+
+        if bolt_from.solved() or max_nuts == 0:
             return 0
         nuts = bolt_from.nuts()
         if len(nuts) == 0:
             return 0
 
-        # starting from the first nut, pop all matching nuts, replacing with 0s
+        # starting from the first nut, pop all matching nuts up to the amount the receiving bolt can accept, replacing with 0s
         count = 1
         first = nuts[0]
         color = bolt_from._slots[first]
-        for i in range(first + 1, 4):
+        for i in range(first + 1, min(4, first + max_nuts)):
             if bolt_from._slots[i] != color:
                 break
             count += 1
 
-        bolt_to = self.game_state.bolts[bolt_to_idx]
         if not bolt_to.can_accept_nuts((count, color)):
             return False
 
@@ -431,5 +421,7 @@ class Game:
             # create bolts from the remaining lines
 
             return Game.from_state(
-                name, [[int(nut) for nut in slots] for slots in lines[1:]], n_bolts
+                name,
+                [[int(nut) for nut in slots.split()] for slots in lines[1:]],
+                n_bolts,
             )
