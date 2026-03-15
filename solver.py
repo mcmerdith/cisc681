@@ -165,9 +165,7 @@ class Solver(ABC):
 
         # write the statistics file
         with open(stats_file, "w") as f:
-            f.write(f"Initial state\n{game.initial_state_str}\n\n")
-            f.write(f"Solution\n{str(game)}\n\n")
-            f.write(f"Solved in {self._iteration} iterations\n")
+            f.write(f"Solved in {self._iteration} iterations\n\n")
             f.write(f"{game.get_stats()}\n")
             f.write(f"{self.get_stats()}\n")
 

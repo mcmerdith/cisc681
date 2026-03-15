@@ -218,7 +218,23 @@ class Game:
 
         return "\n".join(
             [
-                f"Total cost: {self.game_state.cost:.2f}",
+                self.get_state_change_str(),
+                f"\nTotal cost: {self.game_state.cost:.2f}",
+            ]
+        )
+
+    def get_state_change_str(self) -> str:
+        """
+        State change for the current game state,
+        showing the initial and current state side by side
+        """
+
+        return "\n".join(
+            [
+                f"{initial}  =>  {current}"
+                for initial, current in zip(
+                    self.initial_state_str.split("\n"), str(self).split("\n")
+                )
             ]
         )
 
