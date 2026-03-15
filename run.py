@@ -74,12 +74,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--clean",
         action="store_true",
-        help="Remove all old solution files before solving",
+        help="Remove all old solution files for SOLVERS before solving",
     )
     parser.add_argument(
-        "--random", type=int, help="Solve a random state with RANDOM bolts"
+        "--random",
+        type=int,
+        help="Solve a random state with RANDOM bolts. Overrides --states",
     )
     parser.add_argument("--replay", action="store_true", help="Replay solutions")
+    parser.add_argument(
+        "--no-save",
+        action="store_false",
+        dest="save_solution",
+        help="Do not save the solution",
+    )
+    parser.add_argument(
+        "--print-steps", action="store_true", help="Print the state after each step"
+    )
     parser.add_argument(
         "--states",
         nargs="+",
@@ -93,9 +104,6 @@ if __name__ == "__main__":
         help="List of solvers to use",
     )
     parser.add_argument(
-        "--print-state", action="store_true", help="Print the state after each step"
-    )
-    parser.add_argument(
         "--step-delay-ms",
         type=int,
         default=0,
@@ -107,18 +115,12 @@ if __name__ == "__main__":
         default=None,
         help="Maximum number of iterations to run",
     )
-    parser.add_argument(
-        "--no-save",
-        action="store_false",
-        dest="save_solution",
-        help="Do not save the solution",
-    )
 
     args = parser.parse_args()
 
     solver_instances = [
         all_solvers[solver_name](
-            print_steps=args.print_state, step_delay_ms=args.step_delay_ms
+            print_steps=args.print_steps, step_delay_ms=args.step_delay_ms
         )
         for solver_name in args.solvers
     ]
