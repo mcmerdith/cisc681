@@ -7,7 +7,19 @@ import numpy as np
 from numpy.random import permutation
 from termcolor import colored, cprint
 
-COLORS = ["default", "yellow", "red", "blue", "green", "magenta", "cyan"]
+COLORS = [
+    "default",  # 0 represents no nut, so this should never be indexed
+    "yellow",
+    "red",
+    "blue",
+    "green",
+    "magenta",
+    "cyan",
+    "light_yellow",
+    "light_red",
+    "light_green",
+    "light_magenta",
+]
 
 
 def colored_nut_str(nut: int) -> str:
@@ -101,6 +113,8 @@ class Bolt:
             """Check that there are no spaces between nuts, replacing any illegal nut with -1"""
             if len(acc) == 0:
                 return [slot]
+            if slot < 0 or slot > 9:
+                return acc + [-1]
             if slot == 0 and not all(s == 0 for s in acc):
                 # empty spaces may only be preceeded by empty spaces
                 return acc + [-1]
@@ -109,7 +123,7 @@ class Bolt:
         valid_slots = reduce(check_nuts, self._slots, [])
         if any(slot < 0 for slot in valid_slots):
             cprint(
-                f"Invalid state: bolt has an illegal space at {[i for i, slot in enumerate(valid_slots) if slot < 0]}",
+                f"Invalid state: bolt has an illegal slot at {[i for i, slot in enumerate(valid_slots) if slot < 0]}",
                 "red",
             )
             return False
@@ -366,7 +380,9 @@ class Game:
 
         min_empty = 2
 
-        bolts = np.array([np.full(4, i + 1) for i in range(bolt_count - min_empty)])
+        bolts = np.array(
+            [np.full(4, (i % 9) + 1) for i in range(bolt_count - min_empty)]
+        )
         bolts = permutation(bolts.ravel()).reshape(bolts.shape)
 
         return Game.from_state(f"random{bolt_count}", bolts.tolist(), bolt_count)
