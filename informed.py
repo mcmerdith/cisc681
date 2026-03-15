@@ -8,12 +8,21 @@ from solver import Solver
 
 
 def heuristic(state: GameState) -> float:
-    all_colors = state.colors()
-    bolt_colors = [bolt.colors() for bolt in state.bolts]
+    bolt_colors = [set(bolt._slots).difference({0}) for bolt in state.bolts]
+    all_colors = set().union(*bolt_colors)
+
+    # needed to determine how many bolts are required for each color
+    nut_counts = {
+        color: sum(1 for bolt in state.bolts for slot in bolt._slots if slot == color)
+        for color in all_colors
+    }
 
     return sum(
         [
-            max(0, sum(1 for bolt in bolt_colors if color in bolt) - 1)
+            max(
+                0,
+                sum(1 for bolt in bolt_colors if color in bolt) - nut_counts[color] / 4,
+            )
             for color in all_colors
         ]
     )
