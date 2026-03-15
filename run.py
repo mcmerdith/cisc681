@@ -1,16 +1,18 @@
 import os
 
-from solver import Solver
-
 if __name__ == "__main__":
     from argparse import ArgumentParser
 
     from game import Game
-    from informed import AStarSearch
+    from informed import AStarSearch, IDAStarSearch
     from uninformed import BreadthFirstSearch
 
     states = ["problem1", "problem2", "problem3"]
-    solvers = {"astar": AStarSearch, "bfs": BreadthFirstSearch}
+    solvers = {
+        "bfs": BreadthFirstSearch,
+        "idastar": IDAStarSearch,
+        "astar": AStarSearch,
+    }
 
     fn = ArgumentParser()
     fn.add_argument("--clean", action="store_true")
