@@ -97,6 +97,7 @@ class Solver(ABC):
         self._iteration = 0
         self._start_time = time()
         self._end_time = None
+        self._halt = False
 
         # fix windows console color handling
         colorama.just_fix_windows_console()
@@ -119,14 +120,14 @@ class Solver(ABC):
 
                 print(output, "\n")
 
+            if self.step_delay_ms > 0:
+                sleep(self.step_delay_ms / 1000.0)
+
             if solved or failed:
                 break
 
             self._halt = self.iteration(game)
             self._iteration += 1
-
-            if self.step_delay_ms > 0:
-                sleep(self.step_delay_ms / 1000.0)
 
         self._end_time = time()
 
