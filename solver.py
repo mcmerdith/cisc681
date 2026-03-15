@@ -151,7 +151,8 @@ class Solver(ABC):
         # write the solution file
         with open(make_path(filename), "w") as f:
             f.writelines(
-                f"{action[0]} {action[1]}\n" for action in game.game_state.actions
+                f"{action[0] + 1} {action[1] + 1}\n"
+                for action in game.game_state.actions
             )
 
         cprint(f"Saved solution to {make_path(filename)}", "light_blue")
