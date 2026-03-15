@@ -119,21 +119,8 @@ def main():
         "state_file",
         help="The name of the game state file to load, excluding the extension",
     )
-    parser.add_argument(
-        "--print-state",
-        action="store_true",
-        help="Print the state after each move",
-    )
-    parser.add_argument(
-        "--no-save",
-        action="store_false",
-        help="Do not save the solution",
-        dest="save_solution",
-    )
     args = parser.parse_args()
-    game = Game.from_state_file(args.state_file)
-    breadth_first = BreadthFirstSearch(print_steps=args.print_state)
-    breadth_first.solve(game, save_solution=args.save_solution)
+    BreadthFirstSearch().solve(Game.from_state_file(args.state_file))
 
 
 if __name__ == "__main__":
