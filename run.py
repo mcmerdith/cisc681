@@ -1,4 +1,5 @@
 import os
+from shutil import rmtree
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -15,12 +16,27 @@ if __name__ == "__main__":
     }
 
     fn = ArgumentParser()
-    fn.add_argument("--clean", action="store_true")
-    fn.add_argument("--states", nargs="+", default=states)
-    fn.add_argument("--solvers", nargs="+", default=solvers.keys())
-    fn.add_argument("--random", type=int)
-    fn.add_argument("--print-state", action="store_true")
-    fn.add_argument("--no-save", action="store_false", dest="save_solution")
+    fn.add_argument(
+        "--clean",
+        action="store_true",
+        help="Remove all old solution files before solving",
+    )
+    fn.add_argument(
+        "--states", nargs="+", default=states, help="List of problem states to solve"
+    )
+    fn.add_argument(
+        "--solvers", nargs="+", default=solvers.keys(), help="List of solvers to use"
+    )
+    fn.add_argument("--random", type=int, help="Solve a random state with RANDOM bolts")
+    fn.add_argument(
+        "--print-state", action="store_true", help="Print the state after each step"
+    )
+    fn.add_argument(
+        "--no-save",
+        action="store_false",
+        dest="save_solution",
+        help="Do not save the solution",
+    )
 
     args = fn.parse_args()
     game = None
@@ -30,13 +46,13 @@ if __name__ == "__main__":
 
     for state in args.states:
         for solver_name in args.solvers:
+            solver = solvers[solver_name](print_steps=args.print_state)
             if args.clean:
-                os.rmdir(os.path.join("solutions", solver_name))
+                rmtree(os.path.join("solutions", solver.get_name()), ignore_errors=True)
             if isinstance(state, str):
                 game = Game.from_state_file(state)
             elif game:
                 game.restore_snapshot(state)
             else:
                 raise ValueError("Game not initialized")
-            solver = solvers[solver_name](print_steps=args.print_state)
             solver.solve(game, save_solution=args.save_solution)

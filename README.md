@@ -2,6 +2,33 @@
 
 ### Matthew Meredith
 
+## Quick Start
+
+Install Dependencies: `pip install numpy termcolor colorama`
+
+Run all solvers on all problems: `python run.py`
+
+Run uninformed search only: `python run.py --solvers bfs` or `python uninformed.py <problem name>`
+
+Run informed search only: `python run.py --solvers idastar astar` or `python informed.py <problem name>`
+
+### Runner Parameters
+
+```
+usage: run.py [-h] [--clean] [--states STATES [STATES ...]] [--solvers SOLVERS [SOLVERS ...]] [--random RANDOM] [--print-state] [--no-save]
+
+options:
+  -h, --help            show this help message and exit
+  --clean               Remove all old solution files before solving
+  --states STATES [STATES ...]
+                        List of problem states to solve
+  --solvers SOLVERS [SOLVERS ...]
+                        List of solvers to use
+  --random RANDOM       Solve a random state with RANDOM bolts
+  --print-state         Print the state after each step
+  --no-save             Do not save the solution
+```
+
 ## Problem Overview
 
 The goal of the puzzle is to have all nuts of a matching color on the same bolt.
