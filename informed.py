@@ -135,7 +135,7 @@ class IDAStarSearch(Solver):
         )
 
     def search(
-        self, game: Game, state: GameState, parents: list[GameState] | None = None
+        self, game: Game, state: GameState, backtrack: list[GameState] | None = None
     ):
         """Expand the best fringe node and add its children to the fringe"""
 
@@ -150,8 +150,8 @@ class IDAStarSearch(Solver):
         self.expanded += 1
         min_excess = inf
 
-        if not parents:
-            parents = []
+        if not backtrack:
+            backtrack = []
 
         changed = True
         # compute all possible moves from the current state
@@ -171,7 +171,7 @@ class IDAStarSearch(Solver):
 
                 changed = True
 
-                if game.game_state in parents:
+                if game.game_state in backtrack:
                     # avoid branching to states we're already visited in this pass
                     continue
 
@@ -181,7 +181,9 @@ class IDAStarSearch(Solver):
                 game.game_state.heuristic = heuristic(game.game_state)
 
                 # continue deepening the search
-                result = self.search(game, game.game_state, parents + [game.game_state])
+                result = self.search(
+                    game, game.game_state, backtrack + [game.game_state]
+                )
                 if result is True:
                     return True
                 if result < min_excess:
