@@ -122,6 +122,9 @@ class GameState:
     cost: float = field(default=0.0, compare=False)
     """The cost of reaching this state"""
 
+    heuristic: float = field(default=0.0, compare=False)
+    """The heuristic value of this state"""
+
     def last_action(self) -> tuple[int, int] | None:
         """Return the last action taken to reach this state, or None if this is the initial state"""
 
