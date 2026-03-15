@@ -1,0 +1,21 @@
+Initial state
+         
+1 1 2 0 0
+2 1 1 0 0
+2 2 3 0 0
+3 3 3 0 0
+---------
+
+Solution
+  ^-v    
+0 0 3 1 2
+0 0 3 1 2
+0 0 3 1 2
+0 0 3 1 2
+---------
+
+Solved in 3 iterations
+Total cost: 8.00
+Time taken: 0.03s
+Expanded 76 states
+Threshold: 8.0

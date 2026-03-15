@@ -1,0 +1,23 @@
+Initial state
+             
+3 3 4 2 1 0 0
+3 2 1 4 5 0 0
+3 1 4 2 5 0 0
+1 4 2 5 5 0 0
+-------------
+
+Solution
+      ^-v    
+1 4 2 0 5 3 0
+1 4 2 0 5 3 0
+1 4 2 0 5 3 0
+1 4 2 0 5 3 0
+-------------
+
+Solved in 167 iterations
+Total cost: 12.00
+Time taken: 0.11s
+Expanded 167 states
+Fringe: 476 states
+  Min: 12.00 + 0.00 (12 steps)
+  Max: 6.00 + 8.00 (6 steps)
