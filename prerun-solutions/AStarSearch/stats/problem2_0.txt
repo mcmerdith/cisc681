@@ -18,6 +18,5 @@ Solved in 36 iterations
 Total cost: 6.00
 Time taken: 0.02s
 Expanded 36 states
-Fringe: 101 states
-  Min: 6.00 + 0.00 (6 steps)
-  Max: 4.00 + 4.00 (4 steps)
+Fringe size: 101 states
+Max fringe size: 102 states
