@@ -4,6 +4,7 @@ from functools import reduce
 from typing import Callable
 
 import numpy as np
+from numpy.random import permutation
 from termcolor import colored, cprint
 
 COLORS = ["default", "yellow", "red", "blue", "green", "magenta", "cyan"]
@@ -28,6 +29,12 @@ class Bolt:
         """Get the indices of nuts on the bolt"""
 
         return [i for i, slot in enumerate(self._slots) if slot != 0]
+
+    def boundaries(self) -> int:
+        nuts = [x for x in self._slots if x != 0]
+        if len(nuts) < 2:
+            return 0
+        return sum(1 for a, b in zip(nuts, nuts[1:]) if a != b)
 
     def can_accept_nuts(self, new_nuts: tuple[int, int]) -> bool:
         """Nuts can only be placed on top of matching colors, or if the bolt is empty"""
@@ -106,7 +113,7 @@ class Bolt:
         return True
 
 
-@dataclass()
+@dataclass
 class GameState:
     """
     Represents the state of the game including the bolts,
@@ -123,12 +130,16 @@ class GameState:
     """The cost of reaching this state"""
 
     heuristic: float = field(default=0.0, compare=False)
-    """The heuristic value of this state"""
+    """The heuristic value of this state. If not using a heuristic this should be left at 0"""
 
     def last_action(self) -> tuple[int, int] | None:
         """Return the last action taken to reach this state, or None if this is the initial state"""
 
         return self.actions[len(self.actions) - 1] if len(self.actions) > 0 else None
+
+    def heuristic_cost(self) -> float:
+        """Return the cost plus the heuristic of this state"""
+        return self.cost + self.heuristic
 
     def solved(self) -> bool:
         """The game is solved if all bolts are solved"""
@@ -143,16 +154,16 @@ class GameState:
         return hash(tuple(slot for bolt in self.bolts for slot in bolt._slots))
 
     def __gt__(self, other: "GameState") -> bool:
-        return self.cost > other.cost
+        return self.heuristic_cost() > other.heuristic_cost()
 
     def __ge__(self, other: "GameState") -> bool:
-        return self.cost >= other.cost
+        return self.heuristic_cost() >= other.heuristic_cost()
 
     def __lt__(self, other: "GameState") -> bool:
-        return self.cost < other.cost
+        return self.heuristic_cost() < other.heuristic_cost()
 
     def __le__(self, other: "GameState") -> bool:
-        return self.cost <= other.cost
+        return self.heuristic_cost() <= other.heuristic_cost()
 
 
 # tests to ensure GameState equality, inequality, and hash work correctly
@@ -223,7 +234,9 @@ class Game:
         """
         Swap nuts from one bolt to another.
 
-        Returns the number of bolts moved. A value of 0 indicates a failed swap.
+        Solved bolts will not have nuts removed, and will result in a value of 0 being returned
+
+        Returns the number of bolts moved between 0 and 3. A value of 0 indicates a failed swap.
         """
 
         # validate inputs
@@ -236,7 +249,8 @@ class Game:
 
         # check what would be popped from the source bolt
         bolt_from = self.game_state.bolts[bolt_from_idx]
-        bolt_to = self.game_state.bolts[bolt_to_idx]
+        if bolt_from.solved():
+            return 0
         nuts = bolt_from.nuts()
         if len(nuts) == 0:
             return 0
@@ -250,6 +264,7 @@ class Game:
                 break
             count += 1
 
+        bolt_to = self.game_state.bolts[bolt_to_idx]
         if not bolt_to.can_accept_nuts((count, color)):
             return False
 
@@ -345,7 +360,53 @@ class Game:
         return self.display_string()
 
     @staticmethod
-    def from_state(name: str) -> "Game":
+    def random_state(bolt_count: int) -> "Game":
+        """
+        Return a randomly generated game state.
+        """
+
+        min_empty = 2
+
+        bolts = np.array([np.full(4, i + 1) for i in range(bolt_count - min_empty)])
+        bolts = permutation(bolts.ravel()).reshape(bolts.shape)
+
+        return Game.from_state("random", bolts.tolist(), bolt_count)
+
+    @staticmethod
+    def from_state(name: str, state: list[list[int]], n_bolts: int) -> "Game":
+        bolts = [Bolt(slots) for slots in state]
+
+        # ensure the number of bolts does not exceed n_bolts
+        if len(bolts) > n_bolts:
+            raise ValueError(
+                f"Invalid state file: {name}. Too many bolts! (should be at most {n_bolts}, was {len(bolts)})"
+            )
+
+        # create a game state, adding empty bolts to have n_bolts total
+        game = Game(
+            name,
+            GameState(bolts + [Bolt([0, 0, 0, 0]) for _ in range(len(bolts), n_bolts)]),
+        )
+
+        # validate that the game is solvable
+        all_nuts = [slot for bolt in game.game_state.bolts for slot in bolt._slots]
+        for color in set(all_nuts):
+            if all_nuts.count(color) % 4 != 0:
+                raise ValueError(
+                    f"Invalid state file: {name}. Color {color} has an invalid count {all_nuts.count(color)} (expected multiple of 4)"
+                )
+
+        # validate each bolt individually
+        valid_bolts = [bolt.validate(initial=True) for bolt in game.game_state.bolts]
+        if not all(valid_bolts):
+            raise ValueError(
+                f"Invalid state file: {name}. Invalid bolts {[i for i, valid in enumerate(valid_bolts) if not valid]}"
+            )
+
+        return game
+
+    @staticmethod
+    def from_state_file(name: str) -> "Game":
         """
         Load a game state from a file located in the `states` directory.
 
@@ -368,29 +429,7 @@ class Game:
             n_bolts = int(lines[0].strip())
 
             # create bolts from the remaining lines
-            bolts = [Bolt([int(nut) for nut in line.split()]) for line in lines[1:]]
 
-            # ensure the number of bolts does not exceed n_bolts
-            if len(bolts) > n_bolts:
-                raise ValueError(
-                    f"Invalid state file: {name}. Too many bolts! (should be at most {n_bolts}, was {len(bolts)})"
-                )
-
-            # create a game state, adding empty bolts to have n_bolts total
-            game = Game(
-                name,
-                GameState(
-                    bolts + [Bolt([0, 0, 0, 0]) for _ in range(len(bolts), n_bolts)]
-                ),
+            return Game.from_state(
+                name, [[int(nut) for nut in slots] for slots in lines[1:]], n_bolts
             )
-
-            # validate each bolt individually
-            valid_bolts = [
-                bolt.validate(initial=True) for bolt in game.game_state.bolts
-            ]
-            if not all(valid_bolts):
-                raise ValueError(
-                    f"Invalid state file: {name}. Invalid bolts {[i for i, valid in enumerate(valid_bolts) if not valid]}"
-                )
-
-            return game
