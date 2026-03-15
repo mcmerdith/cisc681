@@ -161,7 +161,7 @@ class GameState:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, GameState):
             return False
-        return [i in other.bolts for i in self.bolts]
+        return all([i in other.bolts for i in self.bolts])
 
     def __gt__(self, other: "GameState") -> bool:
         return self.heuristic_cost() > other.heuristic_cost()
@@ -255,13 +255,15 @@ class Game:
         count = 1
         first = nuts[0]
         color = bolt_from._slots[first]
+
+        # fail fast for the wrong color
+        if not bolt_to.can_accept_nuts((1, color)):
+            return 0
+
         for i in range(first + 1, min(4, first + max_nuts)):
             if bolt_from._slots[i] != color:
                 break
             count += 1
-
-        if not bolt_to.can_accept_nuts((count, color)):
-            return False
 
         # swap the nuts, collapsing any empty spaces
         bolt_from._slots[first : first + count] = [0] * count
