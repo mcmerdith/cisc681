@@ -1,14 +1,22 @@
 import argparse
 import heapq
 from dataclasses import dataclass, field
-from math import ceil, inf
+from math import inf
 
 from game import Game, GameState
 from solver import Solver
 
 
 def heuristic(state: GameState) -> float:
-    return ceil(sum([bolt.boundaries() for bolt in state.bolts]) / 2)
+    all_colors = state.colors()
+    bolt_colors = [bolt.colors() for bolt in state.bolts]
+
+    return sum(
+        [
+            max(0, sum(1 for bolt in bolt_colors if color in bolt) - 1)
+            for color in all_colors
+        ]
+    )
 
 
 @dataclass

@@ -30,11 +30,10 @@ class Bolt:
 
         return [i for i, slot in enumerate(self._slots) if slot != 0]
 
-    def boundaries(self) -> int:
-        nuts = [x for x in self._slots if x != 0]
-        if len(nuts) < 2:
-            return 0
-        return sum(1 for a, b in zip(nuts, nuts[1:]) if a != b)
+    def colors(self) -> set[int]:
+        """Get the colors of nuts on the bolt"""
+
+        return set(self._slots).difference({0})
 
     def free_slots(self) -> int:
         """Get the number of free slots on the bolt"""
@@ -141,6 +140,11 @@ class GameState:
         """Return the last action taken to reach this state, or None if this is the initial state"""
 
         return self.actions[len(self.actions) - 1] if len(self.actions) > 0 else None
+
+    def colors(self) -> set[int]:
+        """Get the colors of nuts on the bolts"""
+
+        return set().union(*[bolt.colors() for bolt in self.bolts]).difference({0})
 
     def heuristic_cost(self) -> float:
         """Return the cost plus the heuristic of this state"""
