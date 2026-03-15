@@ -1,20 +1,20 @@
 import os
+from argparse import ArgumentParser
 from shutil import rmtree
 
+from game import Game
+from informed import AStarSearch, IDAStarSearch
+from uninformed import BreadthFirstSearch
+
+states = ["problem1", "problem2", "problem3"]
+solvers = {
+    "bfs": BreadthFirstSearch,
+    "idastar": IDAStarSearch,
+    "astar": AStarSearch,
+}
+
+
 if __name__ == "__main__":
-    from argparse import ArgumentParser
-
-    from game import Game
-    from informed import AStarSearch, IDAStarSearch
-    from uninformed import BreadthFirstSearch
-
-    states = ["problem1", "problem2", "problem3"]
-    solvers = {
-        "bfs": BreadthFirstSearch,
-        "idastar": IDAStarSearch,
-        "astar": AStarSearch,
-    }
-
     fn = ArgumentParser()
     fn.add_argument(
         "--clean",
@@ -39,6 +39,13 @@ if __name__ == "__main__":
     )
 
     args = fn.parse_args()
+
+    if args.clean:
+        for solver_name in args.solvers:
+            solver = solvers[solver_name]()
+            rmtree(os.path.join("solutions", solver.get_name()), ignore_errors=True)
+        exit()
+
     game = None
     if args.random:
         game = Game.random_state(args.random)
