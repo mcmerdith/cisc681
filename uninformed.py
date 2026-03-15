@@ -43,16 +43,30 @@ class BreadthFirstSearch(Solver):
     fringe: deque[GameState] = field(default_factory=deque)
     """All states that are currently in the fringe"""
 
+    _max_fringe_size: int = field(default=0, init=False)
+
+    def reset(self):
+        super().reset()
+        self.visited = set()
+        self.fringe = deque()
+        self._max_fringe_size = 0
+
     def get_stats(self):
+
         return "\n".join(
             [
                 super().get_stats(),
                 f"Expanded {len(self.visited)} states",
-                f"Fringe: {len(self.fringe)} states",
+                f"Fringe size: {len(self.fringe)} states",
+                f"Max fringe size: {self._max_fringe_size} states",
             ]
         )
 
     def pop_best_state(self) -> GameState | None:
+        current_size = len(self.fringe)
+        if self._max_fringe_size < current_size:
+            self._max_fringe_size = current_size
+
         while True:
             # restore the best fringe node as the current game state
             try:

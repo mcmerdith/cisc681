@@ -31,17 +31,22 @@ class AStarSearch(Solver):
     fringe: list[GameState] = field(default_factory=list)
     """All states that are currently in the fringe"""
 
+    _max_fringe_size: int = field(default=0, init=False)
+
+    def reset(self):
+        super().reset()
+        self.expanded = dict()
+        self.fringe = list()
+        self._max_fringe_size = 0
+
     def get_stats(self):
-        min_fringe = min(self.fringe)
-        max_fringe = max(self.fringe)
 
         return "\n".join(
             [
                 super().get_stats(),
                 f"Expanded {len(self.expanded)} states",
-                f"Fringe: {len(self.fringe)} states",
-                f"  Min: {min_fringe.cost:.2f} + {min_fringe.heuristic:.2f} ({len(min_fringe.actions)} steps)",
-                f"  Max: {max_fringe.cost:.2f} + {max_fringe.heuristic:.2f} ({len(max_fringe.actions)} steps)",
+                f"Fringe size: {len(self.fringe)} states",
+                f"Max fringe size: {self._max_fringe_size} states",
             ]
         )
 
@@ -49,6 +54,10 @@ class AStarSearch(Solver):
         return state in self.expanded and self.expanded[state] <= state.cost
 
     def pop_best_state(self) -> GameState | None:
+        current_size = len(self.fringe)
+        if self._max_fringe_size < current_size:
+            self._max_fringe_size = current_size
+
         while True:
             # restore the best fringe node as the current game state
             try:
@@ -123,6 +132,11 @@ class IDAStarSearch(Solver):
 
     expanded: int = field(default=0)
     """Count of states that have been expanded"""
+
+    def reset(self):
+        super().reset()
+        self.expanded = 0
+        self.threshold = 0
 
     def get_stats(self):
         return "\n".join(

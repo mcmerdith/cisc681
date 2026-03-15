@@ -14,7 +14,7 @@ class Solver(ABC):
     """
     Base class for all solvers.
 
-    Must implement `iteration`.
+    Must implement `reset` and `iteration`.
 
     May implement `get_stats`. Call `super().get_stats()` if overriding.
     """
@@ -36,6 +36,15 @@ class Solver(ABC):
 
     _halt: bool = field(default=False, init=False)
     """Whether the solver should halt"""
+
+    def reset(self):
+        """Set the initial state of the solver"""
+
+        # reset solver state
+        self._iteration = 0
+        self._start_time = time()
+        self._end_time = None
+        self._halt = False
 
     @abstractmethod
     def iteration(self, game: Game) -> bool:
@@ -93,11 +102,7 @@ class Solver(ABC):
         will be saved to `solutions/<solver_name>/<state_name>.txt
         """
 
-        # reset solver state
-        self._iteration = 0
-        self._start_time = time()
-        self._end_time = None
-        self._halt = False
+        self.reset()
 
         # fix windows console color handling
         colorama.just_fix_windows_console()
