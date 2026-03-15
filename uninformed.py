@@ -135,7 +135,7 @@ def main():
         dest="save_solution",
     )
     args = parser.parse_args()
-    game = Game.from_state(args.state_file)
+    game = Game.from_state_file(args.state_file)
     uniform_cost = UniformCostSearch(print_steps=args.print_state)
     uniform_cost.solve(game, save_solution=args.save_solution)
 
