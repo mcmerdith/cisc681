@@ -205,8 +205,6 @@ class Game:
         return "\n".join(
             [
                 f"Total cost: {self.game_state.cost:.2f}",
-                f"Total steps: {len(self.game_state.actions)}",
-                f"Average step cost: {self.game_state.cost / len(self.game_state.actions):.2f}",
             ]
         )
 
