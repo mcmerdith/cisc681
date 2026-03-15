@@ -32,6 +32,12 @@ if __name__ == "__main__":
         "--print-state", action="store_true", help="Print the state after each step"
     )
     fn.add_argument(
+        "--step-delay-ms",
+        type=int,
+        default=0,
+        help="Delay between steps in milliseconds",
+    )
+    fn.add_argument(
         "--no-save",
         action="store_false",
         dest="save_solution",
@@ -53,7 +59,9 @@ if __name__ == "__main__":
 
     for state in args.states:
         for solver_name in args.solvers:
-            solver = solvers[solver_name](print_steps=args.print_state)
+            solver = solvers[solver_name](
+                print_steps=args.print_state, step_delay_ms=args.step_delay_ms
+            )
             if args.clean:
                 rmtree(os.path.join("solutions", solver.get_name()), ignore_errors=True)
             if isinstance(state, str):
@@ -63,3 +71,4 @@ if __name__ == "__main__":
             else:
                 raise ValueError("Game not initialized")
             solver.solve(game, save_solution=args.save_solution)
+            print("\n")
