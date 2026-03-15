@@ -72,48 +72,55 @@ def replay_solutions(
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
+        "--solvers",
+        nargs="+",
+        default=all_solvers.keys(),
+        choices=all_solvers.keys(),
+        help="List of solvers to use",
+    )
+    parser.add_argument(
         "--clean",
         action="store_true",
         help="Remove all old solution files for SOLVERS before solving",
     )
     parser.add_argument(
+        "--states",
+        nargs="+",
+        default=default_states,
+        help="List of names (without extension) of problem states to solve (located in states/)",
+    )
+    parser.add_argument(
         "--random",
         type=int,
-        help="Solve a random state with RANDOM bolts. Overrides --states",
+        help="Solve a random state with n_bolts=RANDOM. Overrides --states",
     )
-    parser.add_argument("--replay", action="store_true", help="Replay solutions")
+    parser.add_argument(
+        "--replay",
+        action="store_true",
+        help="Replay solutions from STATES and SOLVERS. Cannot be used with --random",
+    )
     parser.add_argument(
         "--no-save",
         action="store_false",
         dest="save_solution",
-        help="Do not save the solution",
+        help="Do not save the solution. Solutions are saved by default",
     )
     parser.add_argument(
-        "--print-steps", action="store_true", help="Print the state after each step"
+        "--max-iterations",
+        type=int,
+        default=None,
+        help="Maximum number of iterations to run. Solvers not complete within MAX_ITERATIONS will be considered failed",
     )
     parser.add_argument(
-        "--states",
-        nargs="+",
-        default=default_states,
-        help="List of problem states to solve",
-    )
-    parser.add_argument(
-        "--solvers",
-        nargs="+",
-        default=all_solvers.keys(),
-        help="List of solvers to use",
+        "--print-steps",
+        action="store_true",
+        help="Print the state after each step. Recommended to use with --step-delay-ms for visualization",
     )
     parser.add_argument(
         "--step-delay-ms",
         type=int,
         default=0,
         help="Delay between steps in milliseconds",
-    )
-    parser.add_argument(
-        "--max-iterations",
-        type=int,
-        default=None,
-        help="Maximum number of iterations to run",
     )
 
     args = parser.parse_args()
