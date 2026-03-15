@@ -34,10 +34,15 @@ class Solver(ABC):
     _end_time: float | None = field(default=None, init=False)
     """The end time of the solver run"""
 
+    _halt: bool = field(default=False, init=False)
+    """Whether the solver should halt"""
+
     @abstractmethod
-    def iteration(self, game: Game) -> None:
+    def iteration(self, game: Game) -> bool:
         """
         Perform one iteration of the solver on the given game.
+
+        Returns True if the solver should halt, False otherwise.
 
         Solvers are responsible for updating the cost of the iteration on each game state.
 
@@ -100,7 +105,9 @@ class Solver(ABC):
 
         while True:
             solved = game.solved()
-            failed = max_iterations is not None and self._iteration >= max_iterations
+            failed = (self._halt and not solved) or (
+                max_iterations is not None and self._iteration >= max_iterations
+            )
 
             # always print the first and last state, and steps when print_steps is True
             if self._iteration == 0 or self.print_steps or solved or failed:
@@ -115,7 +122,7 @@ class Solver(ABC):
             if solved or failed:
                 break
 
-            self.iteration(game)
+            self._halt = self.iteration(game)
             self._iteration += 1
 
             if self.step_delay_ms > 0:

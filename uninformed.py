@@ -1,5 +1,4 @@
 import argparse
-import heapq
 from collections import deque
 from dataclasses import dataclass, field
 from random import randint
@@ -29,6 +28,7 @@ class GamblersSearch(Solver):
                 break
 
         game.game_state.cost += 4 / moved
+        return False
 
 
 @dataclass
@@ -52,29 +52,35 @@ class BreadthFirstSearch(Solver):
             ]
         )
 
-    def pop_best_state(self) -> GameState:
+    def pop_best_state(self) -> GameState | None:
         while True:
             # restore the best fringe node as the current game state
             try:
                 best_state = self.fringe.popleft()
             except IndexError:
-                raise RuntimeError("Unsolvable problem!")
+                return None
 
             # select a node that has not been expanded
             if best_state not in self.visited:
                 break
         return best_state
 
-    def expand(self, game: Game):
-        """Expand the best fringe node and add its children to the fringe"""
+    def iteration(self, game: Game) -> bool:
+        # initial state
+        if self._iteration == 0:
+            snapshot = game.snapshot()
+            self.fringe = deque([snapshot])
 
+        # continue to expand the fringe
         best_state = self.pop_best_state()
+        if not best_state:
+            return True
         self.visited.add(best_state)
 
         # if this state is solved, do nothing and let control fall back to the base solver
         if best_state.solved():
             game.restore_snapshot(best_state)
-            return
+            return True
 
         changed = True
         # compute all possible moves from the current state
@@ -104,14 +110,7 @@ class BreadthFirstSearch(Solver):
                 snapshot = game.snapshot()
                 self.fringe.append(snapshot)
 
-    def iteration(self, game: Game):
-        # initial state
-        if self._iteration == 0:
-            snapshot = game.snapshot()
-            self.fringe = deque([snapshot])
-
-        # continue to expand the fringe
-        self.expand(game)
+        return False
 
 
 def main():

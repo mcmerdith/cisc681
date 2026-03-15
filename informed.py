@@ -48,29 +48,35 @@ class AStarSearch(Solver):
     def is_expanded(self, state: GameState) -> bool:
         return state in self.expanded and self.expanded[state] <= state.cost
 
-    def pop_best_state(self) -> GameState:
+    def pop_best_state(self) -> GameState | None:
         while True:
             # restore the best fringe node as the current game state
             try:
                 best_state = heapq.heappop(self.fringe)
             except IndexError:
-                raise RuntimeError("Unsolvable problem!")
+                return None
 
             # select a node that has either not been expanded or has a lower cost than what was expanded
             if not self.is_expanded(best_state):
                 break
         return best_state
 
-    def expand(self, game: Game):
-        """Expand the best fringe node and add its children to the fringe"""
+    def iteration(self, game: Game) -> bool:
+        # initial state
+        if self._iteration == 0:
+            snapshot = game.snapshot()
+            self.fringe = [snapshot]
 
+        # continue to expand the fringe
         best_state = self.pop_best_state()
+        if not best_state:
+            return True
         self.expanded[best_state] = best_state.cost
 
         # if this state is solved, do nothing and let control fall back to the base solver
         if best_state.solved():
             game.restore_snapshot(best_state)
-            return
+            return True
 
         changed = True
         # compute all possible moves from the current state
@@ -103,14 +109,7 @@ class AStarSearch(Solver):
                 snapshot = game.snapshot()
                 heapq.heappush(self.fringe, snapshot)
 
-    def iteration(self, game: Game):
-        # initial state
-        if self._iteration == 0:
-            snapshot = game.snapshot()
-            self.fringe = [snapshot]
-
-        # continue to expand the fringe
-        self.expand(game)
+        return False
 
 
 @dataclass
@@ -201,13 +200,12 @@ class IDAStarSearch(Solver):
         snapshot = game.snapshot()
         result = self.search(game, snapshot)
 
-        if result is True:
-            return
-        elif result == inf:
-            raise RuntimeError("Unsolvable problem!")
+        if result is True or result == inf:
+            return True
         else:
             self.threshold = result
             game.restore_snapshot(snapshot)
+            return False
 
 
 def main():
