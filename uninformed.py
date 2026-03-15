@@ -120,7 +120,9 @@ def main():
         help="The name of the game state file to load, excluding the extension",
     )
     args = parser.parse_args()
-    BreadthFirstSearch().solve(Game.from_state_file(args.state_file))
+    BreadthFirstSearch().solve(
+        Game.from_state_file(args.state_file), save_solution=True
+    )
 
 
 if __name__ == "__main__":
