@@ -6,15 +6,22 @@
   {
     "label": "Uninformed Search",
     "adapter": "Debugpy",
-    "program": "uninformed.py",
-    "args": ["problem1"],
+    "program": "run.py",
+    "args": ["--solvers", "bfs", "--states", "problem1"],
     "request": "launch",
   },
   {
-    "label": "Informed Search",
+    "label": "Informed Search (IDA*)",
     "adapter": "Debugpy",
-    "program": "informed.py",
-    "args": ["problem1"],
+    "program": "run.py",
+    "args": ["--solvers", "idastar", "--states", "problem1"],
+    "request": "launch",
+  },
+  {
+    "label": "Informed Search (A*)",
+    "adapter": "Debugpy",
+    "program": "run.py",
+    "args": ["--solvers", "astar", "--states", "problem1"],
     "request": "launch",
   },
 ]
