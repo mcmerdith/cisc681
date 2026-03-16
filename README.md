@@ -4,6 +4,39 @@
 
 ### Matthew Meredith
 
+## Notes
+
+There is a lot more here than is necessary for assignment completion.
+Most of the code for the assignment is in `uninformed.py` and `informed.py`.
+There are a few things in `game.py` that are relevant (namely `GameState`,
+the features of which are used extensively by the search algorithms)
+
+I enjoyed this assignment, and found it was a good opportunity to reinforce
+my understanding of the search algorithms, while also practicing building
+software in Python, so there's a lot of extra stuff.
+
+### Core Features
+
+  - Breadth-First Search
+  - A\*, Iterative Deepening A\*
+
+### Extra Features
+
+They're arguably not needed, but they made it a lot easier for me to catch bugs and
+figure out what was going wrong when a solver wasn't doing what I expected.
+(and they're just cool - much more interesting to watch a solver work than just see an output)
+
+  - Advanced visualization
+    - print intermediate states to the console (replacing the previous printout)
+    - colorized view of the game state
+  - Replay: view a previous solution with only the states that were used to achieve the goal
+  - Task runner: run multiple solvers on multiple problems with one command
+  - Random state generation: push the algorithms to the limits without having to manually create states
+  - A Solver API to share some common functions between any type of iterative solver
+  - A rigid Game API to handle game state and rules
+    - less work required for the solver to optimize the search space
+    - prevents me from being a bonehead (usually)
+
 ## Quick Start
 
 Install Dependencies: `pip install numpy termcolor colorama`
