@@ -1,4 +1,4 @@
-# HW1
+# CISC681 Program 1
 
 [https://github.com/mcmerdith/cisc681/tree/hw1](https://github.com/mcmerdith/cisc681/tree/hw1)
 
