@@ -1,0 +1,14 @@
+Solved in 85 iterations
+
+           =>    ^---v  
+1 3 2 0 0  =>  1 0 2 3 0
+1 2 3 0 0  =>  1 0 2 3 0
+1 2 3 0 0  =>  1 0 2 3 0
+1 3 2 0 0  =>  1 0 2 3 0
+---------  =>  ---------
+
+Total cost: 5.00
+Time taken: 0.04s
+Expanded 85 states
+Fringe size: 127 states
+Max fringe size: 135 states
