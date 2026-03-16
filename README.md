@@ -70,11 +70,7 @@ Max fringe size: 15711
 Time taken     : 10.69s
 ```
 
-## Informed Search
-
-I implemented both the **Iterative Deepening A\*** and **A\*** algorithms.
-
-### Heuristic
+### D. Heuristic
 
 The heuristic calculates the minimum number of moves that are required to move all nuts of a given color onto a minimum number of solved bolts.
 
@@ -87,6 +83,10 @@ I was able to push A* to a game size of 12 bolts (2 empty bolts) before the time
 I was only able to push my IDA* implementation to a game size of 7 bolts (2 empty bolts) before the time taken started to significantly increase. I would assume that when the goal depth is high many nodes that would have already been pruned by A* are re-expanded by IDA*.
 
 If the code was more efficient I probably could have gone further. However, the actual algorithm code is massively overshadowed by the copying overhead of saving and restoring game states, so I would have to completely redesign my implementation, and I've rewritten it several times already to get better performance (probably already more than necessary for this assignment).
+
+## E. Informed Search
+
+I implemented both the **Iterative Deepening A\*** and **A\*** algorithms.
 
 #### Problem 1
 
