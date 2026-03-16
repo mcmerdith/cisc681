@@ -29,13 +29,13 @@ Omitting `--states` will replay all available solutions for the specified solver
 
 ## A. Search Space
 
-Given n+2 bolts, there are `4*(n+2)` possible slots for each nut to be placed.
+Given `n+2` bolts, there are `4*(n+2)` possible slots for each nut to be placed.
 
 I would calculate the total search space as `Permutation(4*(n+2), 4*n)`. This is an overestimate, as it considers all possible arrangements even though many are invalid (spaces between nuts on a bolt). In my implementation, I have added an optimization to not consider the order of the bolts, which further reduces the search space. However, I am bad at math so I have not calculated the reduction in search space of this optimization.
 
 ## B. Max Branching Factor
 
-Given n+2 bolts, there are `(n+2)^2` possible selection for which pair of bolts to swap. Since it doesn't make sense to swap a bolt with itself, we reduce this by `n+2`, giving us `(n+2)^2 - (n+2)`. This assumes there is an available slot on each bolt, which is often not the case so the average branching factor is much lower in most cases.
+Given `n+2` bolts, there are `(n+2)^2` possible selection for which pair of bolts to swap. Since it doesn't make sense to swap a bolt with itself, we reduce this by `n+2`, giving us `(n+2)^2 - (n+2)`. This assumes there is an available slot on each bolt, which is often not the case so the average branching factor is much lower in most cases.
 
 ## C. Uninformed Search
 
