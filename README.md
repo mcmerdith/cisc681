@@ -74,7 +74,7 @@ Given `n+2` bolts, there are `(n+2)^2` possible selection for which pair of bolt
 
 ## C. Uninformed Search
 
-I implemented a *Breadth First Search* algorithm. I chose it because we are trying to find
+I implemented a **Breadth First Search** algorithm. I chose it because we are trying to find
 the shortest path, and BFS is guaranteed to find it, since all our step costs are 1.
 
 I was able to push the game size up to 8 bolts (2 empty bolts) before the time taken started to significantly increase.
