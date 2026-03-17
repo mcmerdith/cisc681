@@ -312,19 +312,7 @@ class Game:
 
         return np.transpose(np.array([bolt._slots for bolt in self.game_state.bolts]))
 
-    def display_string(self, formatter: Callable[[int], str] = str) -> str:
-        """
-        Return a multiline string representation of the game board.
-
-        Includes an indication of the last action taken, if any.
-        """
-
-        # format the board as a list of strings
-        board: list[list[int]] = self.visualize().tolist()
-        rows = [" ".join(formatter(nut) for nut in row) for row in board]
-
-        # build the action indicator, if any
-        action = self.game_state.last_action()
+    def build_action_indicator(self, action: tuple[int, int] | None) -> str:
         if action is not None:
             # convert indicies to account for spacing
             idx_from, idx_to = np.array(action) * 2
@@ -355,6 +343,22 @@ class Game:
         else:
             # no action
             action_indicator = " " * (2 * len(self.game_state.bolts) - 1)
+
+        return action_indicator
+
+    def display_string(self, formatter: Callable[[int], str] = str) -> str:
+        """
+        Return a multiline string representation of the game board.
+
+        Includes an indication of the last action taken, if any.
+        """
+
+        # format the board as a list of strings
+        board: list[list[int]] = self.visualize().tolist()
+        rows = [" ".join(formatter(nut) for nut in row) for row in board]
+
+        # build the action indicator
+        action_indicator = self.build_action_indicator(self.game_state.last_action())
 
         return "\n".join(
             [action_indicator, *rows, "-" * (2 * len(self.game_state.bolts) - 1)]

@@ -38,7 +38,11 @@ class Solver(ABC):
     """Whether the solver should halt"""
 
     def reset(self):
-        """Set the initial state of the solver"""
+        """
+        Set the initial state of the solver
+
+        Called only once per call to solve()
+        """
 
         # reset solver state
         self._iteration = 0
@@ -143,7 +147,7 @@ class Solver(ABC):
             print()
             cprint(f"{game.get_stats()}", "light_blue")
         else:
-            cprint(f"Failed to solve within {max_iterations} iterations", "red")
+            cprint(f"Failed to solve in {self._iteration} iterations", "red")
 
         cprint(f"{self.get_stats()}", "light_blue")
 

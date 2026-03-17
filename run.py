@@ -6,6 +6,7 @@ from termcolor import cprint
 
 from game import Game
 from informed import AStarSearch, IDAStarSearch
+from interactive import Interactive
 from replay import Replay
 from solver import Solver
 from uninformed import BreadthFirstSearch, GamblersSearch
@@ -22,6 +23,7 @@ all_solvers = {
     "bfs": BreadthFirstSearch,
     "idastar": IDAStarSearch,
     "astar": AStarSearch,
+    "interactive": Interactive,
 }
 
 
