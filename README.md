@@ -4,6 +4,11 @@
 
 ### Matthew Meredith
 
+This branch is frozen at the submission deadline for the assignment.
+For any features added after, see:
+
+[https://github.com/mcmerdith/cisc681/tree/bolt-puzzle](https://github.com/mcmerdith/cisc681/tree/bolt-puzzle)
+
 ## Notes
 
 There is a lot more here than is necessary for assignment completion.
