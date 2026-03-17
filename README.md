@@ -4,17 +4,14 @@
 
 ### Matthew Meredith
 
-## Core Features
+For the original assignment repo, see:
 
-  - Breadth-First Search
-  - A\*, Iterative Deepening A\*
+[https://github.com/mcmerdith/cisc681/tree/program-1](https://github.com/mcmerdith/cisc681/tree/program-1)
 
-## Extra Features
+## Features
 
-They're arguably not needed, but they made it a lot easier for me to catch bugs and
-figure out what was going wrong when a solver wasn't doing what I expected.
-(and they're just cool - much more interesting to watch a solver work than just see an output)
-
+  - Breadth-First Search, A\*, Iterative Deepening A\*
+  - Interactive Mode
   - Advanced visualization
     - print intermediate states to the console (replacing the previous printout)
     - colorized view of the game state
@@ -25,7 +22,6 @@ figure out what was going wrong when a solver wasn't doing what I expected.
   - A rigid Game API to handle game state and rules
     - less work required for the solver to optimize the search space
     - prevents me from being a bonehead (usually)
-  - Interactive Mode (just for fun)
 
 ## Quick Start
 
@@ -37,7 +33,13 @@ Install Dependencies: `pip install numpy termcolor colorama blessed`
 > See `python run.py --help` for usage.
 
 ```console
-# python run.py --help
+# Example commands
+> python run.py interactive --no-save --random 6
+> python run.py astar idastar --states problem3
+> python run.py bfs --replay --states problem1 problem2
+
+# Full usage
+> python run.py --help
 usage: run.py [-h] [--clean] [--states STATES [STATES ...]] [--random RANDOM] [--replay] [--no-save] [--max-iterations MAX_ITERATIONS] [--print-steps] [--step-delay-ms STEP_DELAY_MS]
               {gamblers,bfs,idastar,astar,interactive} [{gamblers,bfs,idastar,astar,interactive} ...]
 
