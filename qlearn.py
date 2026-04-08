@@ -1,5 +1,4 @@
 import os
-import pickle
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
 
@@ -17,14 +16,16 @@ def agent_file_path(name: str):
 
 @dataclass
 class Agent:
-    world: Env
     world_size: tuple[int, int]
-    position: int
+
+    # learning parameters
     learning_rate: float = field(kw_only=True, default=0.8)
     discount_factor: float = field(kw_only=True, default=0.95)
     exploration_probability: float = field(kw_only=True, default=0.2)
     exploration_optimism: float = field(kw_only=True, default=1)
     """Higher values result in more exploration"""
+
+    _world: Env = field(init=False)
     _q: np.ndarray = field(init=False)
     _n: np.ndarray = field(init=False)
     _random: np.random.Generator = field(init=False)
@@ -32,20 +33,27 @@ class Agent:
     def __post_init__(self):
         self._q = np.zeros(shape=((self.world_size[0] * self.world_size[1], 4)))
         self._n = np.ones(shape=((self.world_size[0] * self.world_size[1], 4)))
-        self._random = self.world.np_random
 
-    def learn(self, iterations: int):
-        for _ in range(iterations):
+    def learn(self, max_iterations: int):
+        # reduce the learning parameters towards 0 at the end of training
+        learning_anneal = self.learning_rate / max_iterations
+        probability_anneal = self.exploration_probability / max_iterations
+        for i in range(max_iterations):
             self.make_decision()
+            if self.solved():
+                print(f"solved in {i} iterations")
+                break
+
+            # reduce learning parameters on each iteration
+            if self.learning_rate >= learning_anneal:
+                self.learning_rate -= learning_anneal
+            if self.exploration_probability >= probability_anneal:
+                self.exploration_probability -= probability_anneal
 
     def execute(self):
         while True:
-            print(self._q[self.position])
             action = np.argmax(self._q[self.position])
-            print(
-                f"Moving {action_to_text(action)} from {self.position % self.world_size[0] + int(self.position / self.world_size[0])}",
-            )
-            observation, reward, terminated, truncated, info = self.world.step(action)
+            observation, _, terminated, truncated, _ = self._world.step(action)
             self.position = observation
             if terminated or truncated:
                 break
@@ -53,14 +61,14 @@ class Agent:
     def make_decision(self):
         if self._random.random() < self.exploration_probability:
             # random action
-            action = self._random.integers(0, 3)
+            action = self._world.action_space.sample()
         else:
             # learned action
             action = np.argmax(self._q[self.position])
 
         # step (transition) through the environment with the action
         # receiving the next observation, reward and if the episode has terminated or truncated
-        observation, reward, terminated, truncated, info = self.world.step(action)
+        observation, reward, terminated, truncated, _ = self._world.step(action)
 
         # max_a'[Q(s', a') + optimism / N(s', a')]
         best_next_action = np.argmax(
@@ -72,31 +80,19 @@ class Agent:
             (1 - self.learning_rate) * self._q[self.position, action]
         ) + (self.learning_rate * new_q)
         self.position = observation
-        print(
-            "Transition (s,a,r,s'): ",
-            self.position,
-            action_to_text(action),
-            reward,
-            observation,
-        )
-        print(
-            "Learned that (",
-            self.position,
-            ",",
-            action,
-            ") =",
-            self._q[self.position, action],
-        )
 
         # If the episode has ended then we can reset to start a new episode
         if terminated or truncated:
-            observation, info = self.world.reset()
+            observation, info = self._world.reset()
             self.position = observation
 
-        if self.learning_rate >= 0.01:
-            self.learning_rate -= 0.01
-        if self.exploration_probability >= 0.005:
-            self.exploration_probability -= 0.005
+    def solved(self) -> bool:
+        return bool(np.any(self._q[0] > 0))
+
+    def reset(self, world: Env, seed: int | None = None):
+        self._world = world
+        self._random = self._world.np_random
+        self.position, _ = world.reset(seed=seed)
 
     def save_to_file(self, name: str) -> None:
         np.save(agent_file_path(name), self._q)
@@ -122,49 +118,48 @@ def action_to_text(action):
 
 
 def main(
+    world_size: int,
+    random_world: bool = False,
     is_slippery: bool = True,
     success_rate: float = 0.8,
-    iterations: int = 1000,
-    filename: str = "agent",
+    max_iterations: int = 10000,
 ):
-    filename = filename + "_" + str(iterations)
-    load = os.path.exists(agent_file_path(filename))
-
-    # Initialise the environment
-    env = gym.make(
-        "FrozenLake-v1",
-        render_mode="human" if load else None,
-        map_name="4x4",
-        # desc=generate_random_map(size=4),
-        is_slippery=is_slippery,
-        success_rate=success_rate,
-        reward_schedule=(10, -10, -0.001),
-    )
-    # Reset the environment to generate the first observation
-    observation, info = env.reset(seed=42)
-    print("start state is", observation)
-
-    agent = Agent(env, (4, 4), observation)
-    if load:
-        print("Loading saved agent:", filename)
-        agent.load_from_file(filename)
-        agent.exploration_probability = 0
-
-    if load:
-        agent.execute()
+    if random_world:
+        spec = {"desc": generate_random_map(size=world_size)}
     else:
-        agent.learn(iterations)
-        print(agent._q)
-        agent.save_to_file(filename)
-    env.close()
+        spec = {"map_name": f"{world_size}x{world_size}"}
+
+    def create_world(**opts):
+        return gym.make(
+            "FrozenLake-v1",
+            **spec,
+            is_slippery=is_slippery,
+            success_rate=success_rate,
+            reward_schedule=(10, -10, -0.001),
+            **opts,
+        )
+
+    agent = Agent((world_size, world_size))
+
+    # Train
+    with create_world(render_mode=None) as env:
+        agent.reset(env, 42)
+        agent.learn(max_iterations)
+
+    # Test
+    with create_world(render_mode="human") as env:
+        agent.reset(env, 42)
+        agent.execute()
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     # program arguments
-    parser.add_argument("--is-slippery", action="store_true", dest="is_slippery")
-    parser.add_argument("--success-rate", type=float, dest="success_rate", default=None)
-    parser.add_argument("--iterations", type=int, default=None)
+    parser.add_argument("--world-size", type=int, default=4)
+    parser.add_argument("--random-world", action="store_true")
+    parser.add_argument("--is-slippery", action="store_true")
+    parser.add_argument("--success-rate", type=float, default=None)
+    parser.add_argument("--max-iterations", type=int, default=None)
     args = parser.parse_args()
     # pass through only the arguments which have values
-    main(**{k: v for k, v in vars(args).items() if v is not None})
+    main(**{k.replace("-", "_"): v for k, v in vars(args).items() if v is not None})
