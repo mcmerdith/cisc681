@@ -5,7 +5,7 @@
 ## Quick start
 
 ```
-pip install swig gymnasium "gymnasium[toy-text]"`
+pip install swig gymnasium "gymnasium[toy-text]" pytest tqdm`
 python qlearn.py
 ```
 
