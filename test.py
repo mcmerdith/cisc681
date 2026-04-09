@@ -1,111 +1,48 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
-import pytest
+from tqdm import tqdm
 
 from qlearn import (
     Agent,
-    AgentPerformance,
-    EvaluationMethod,
     create_spec,
     create_world,
-    train_agent,
 )
-
-
-def padded_number(value: float | int, precision: int = 2, length: int = 6):
-    num = str(round(value, precision))
-    if len(num) < length:
-        num = " " * (length - len(num)) + num
-    return num
-
-
-def percent(value: float):
-    return padded_number(value * 100) + "%"
+from utils import (
+    AgentBatchPerformance,
+    AgentParameters,
+    AgentPerformance,
+    ConvergenceMethod,
+    WorldParameters,
+)
 
 
 @dataclass
 class TestResult:
-    # identifiers
-    world_size: int
-    random_world: bool
-    slippery: bool
-    success_rate: float
-    reward_schedule: tuple[float, float, float]
-    evaluation_methods: list[EvaluationMethod] | None
-    max_iterations: int
+    world_parameters: WorldParameters
+    agent_parameters: AgentParameters
 
-    # performance
-    samples: int = 0
-    success_count: float = 0
-    out_of_moves_count: float = 0
-    unlucky_count: float = 0
-    total_moves: float = 0
-    failed_moves: float = 0
+    batch_performance: AgentBatchPerformance = field(
+        default_factory=AgentBatchPerformance
+    )
 
     def accumulate(self, performance: AgentPerformance):
-        self.samples += 1
-        if performance.success:
-            self.success_count += 1
-        if performance.out_of_moves:
-            self.out_of_moves_count += 1
-        if performance.unlucky:
-            self.unlucky_count += 1
-        self.total_moves += performance.total_moves
-        self.failed_moves += performance.failed_moves
+        self.batch_performance.accumulate(performance)
 
     def __str__(self):
         return (
-            f"Success: {percent(self.success_count / self.samples)}  "
-            + f"Out of Moves: {percent(self.out_of_moves_count / self.samples)}  "
-            + f"Unlucky Count: {percent(self.unlucky_count / self.samples)}  "
-            + f"Average Total Moves: {padded_number(self.total_moves / self.samples)}"
-            + f"Average Failed Moves: {padded_number(self.failed_moves / self.samples)}"
-            + f"Average Failure Rate: {percent(self.failed_moves / self.total_moves)}"
-        )
-
-    def __lt__(self, other: "TestResult"):
-        return (
-            self.world_size,
-            self.random_world,
-            self.slippery,
-            self.success_rate,
-            self.reward_schedule,
-            self.evaluation_methods,
-            self.max_iterations,
-        ) < (
-            other.world_size,
-            other.random_world,
-            other.slippery,
-            other.success_rate,
-            other.reward_schedule,
-            other.evaluation_methods,
-            other.max_iterations,
+            str(self.agent_parameters)
+            + "\n"
+            + str(self.world_parameters)
+            + "\n"
+            + str(self.batch_performance)
         )
 
 
 AGENT_RESULTS = []
 
 
-@pytest.mark.parametrize("world_size", [4, 8])
-@pytest.mark.parametrize(
-    "random_world,evaluation_methods",
-    [
-        (True, ["policy_convergence"]),
-        (True, ["test_success"]),
-        (True, None),
-        (False, ["q_convergence"]),
-        (False, None),
-    ],
-)
-@pytest.mark.parametrize(
-    "slippery,success_rate", [(True, 0.95), (True, 0.85), (True, 0.75), (False, 1)]
-)
-@pytest.mark.parametrize(
-    "reward_schedule", [(10, -10, -0.001), (1, -1, -0.001), (10, -10, 0), (1, -1, 0)]
-)
-@pytest.mark.parametrize("max_iterations", [1000, 10000, 50000, 100000])
-def test_agents(
+def test_agent(
     # world parameters
     world_size: int,
     random_world: bool,
@@ -113,7 +50,7 @@ def test_agents(
     success_rate: float,
     reward_schedule: tuple[float, float, float],
     # agent parameters
-    evaluation_methods: list[EvaluationMethod] | None,
+    evaluation_methods: list[ConvergenceMethod] | None,
     max_iterations: int,
 ):
     spec = create_spec(world_size, random_world)
@@ -122,32 +59,101 @@ def test_agents(
         return create_world(spec, slippery, success_rate, reward_schedule)
 
     result = TestResult(
-        world_size,
-        random_world,
-        slippery,
-        success_rate,
-        reward_schedule,
-        evaluation_methods,
-        max_iterations,
+        WorldParameters(
+            world_size=world_size,
+            random_world=random_world,
+            slippery=slippery,
+            success_rate=success_rate,
+            reward_schedule=reward_schedule,
+        ),
+        AgentParameters(
+            evaluation_methods=evaluation_methods,
+            max_iterations=max_iterations,
+        ),
     )
     agent = Agent(world_generator(), evaluation_methods)
     learned = agent.learn(max_iterations)
     if random_world:
         # large sample performance test
-        for i in range(2000):
+        for i in range(500):
             agent.reset_world(world=world_generator())
             with agent.world:
                 performance = agent.execute()
             result.accumulate(performance)
-        print(result)
 
     else:
         # small sample equality test
+        policy = None
+        for i in range(2):
+            agent.reset_world(world=world_generator())
+            with agent.world:
+                performance = agent.execute()
+            result.accumulate(performance)
+            if policy is not None:
+                assert np.all(policy == agent.get_policy())
+            policy = agent.get_policy()
         pass
 
-    result.append
+    AGENT_RESULTS.append(result)
 
 
-@pytest.fixture(scope="session", autouse=True)
 def print_results():
-    pass
+    yield
+    print()
+    print(i.samples for i in AGENT_RESULTS)
+    for result in sorted(AGENT_RESULTS):
+        print(result.samples)
+        print(result)
+
+
+def main():
+    world_size_l = [4, 8]
+    random_world_l = [True, False]
+    success_rate_l = [0.75, 0.85, 0.95, 1]
+    evaluation_method_l = [None, "some"]
+    reward_schedule_l = [(10, -10, -0.001)]
+    max_iterations_l = [100, 10000, 50000]
+
+    combinations = int(
+        np.prod(
+            [
+                len(param)
+                for param in [
+                    world_size_l,
+                    random_world_l,
+                    success_rate_l,
+                    evaluation_method_l,
+                    reward_schedule_l,
+                    max_iterations_l,
+                ]
+            ]
+        )
+    )
+
+    with tqdm(total=combinations) as pbar:
+        for world_size in world_size_l:
+            for random_world in random_world_l:
+                for success_rate in success_rate_l:
+                    slippery = success_rate < 1
+                    evaluation_method: ConvergenceMethod = (
+                        "policy_convergence" if slippery else "q_convergence"
+                    )
+                    for evaluation_methods in [None, [evaluation_method]]:
+                        for reward_schedule in reward_schedule_l:
+                            for max_iterations in max_iterations_l:
+                                test_agent(
+                                    world_size,
+                                    random_world,
+                                    slippery,
+                                    success_rate,
+                                    reward_schedule,
+                                    evaluation_methods,
+                                    max_iterations,
+                                )
+                                pbar.update(1)
+
+    print_results()
+
+
+if __name__ == "__main__":
+    main()
