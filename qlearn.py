@@ -1,43 +1,36 @@
 from argparse import ArgumentParser
 from collections import deque
 from dataclasses import dataclass, field
+from typing import Literal
 
 import numpy as np
 from gymnasium.core import Env
 from tqdm import tqdm
 
 from utils import (
-    CONVERGENCE_METHODS,
+    CONVERGENCE_METHOD_NAMES,
+    AgentBatchPerformance,
     AgentPerformance,
     ConvergenceMethod,
+    ConvergenceMethodName,
     agent_file_path,
     create_spec,
     create_world,
     e_decay,
-    p_decay,
 )
-
-
-@dataclass
-class ConvergenceParams:
-    q_window_size: int = 500
-    q_delta_threshold: float = 0.01
-
-    stable_policy_iterations: int = 500
-
-    test_sample_size: int = 1000
-    test_success_threshold: float = 0.85
 
 
 @dataclass
 class Agent:
     world: Env
-    convergence_methods: list[ConvergenceMethod] | None
-    convergence_params: ConvergenceParams = field(default_factory=ConvergenceParams)
+    convergence_method: ConvergenceMethod = field(
+        default_factory=lambda: ConvergenceMethod("policy_convergence")
+    )
 
-    # learning parameters
-    learning_rate: float = field(kw_only=True, default=0.8)
-    exploration_prob: float = field(kw_only=True, default=0.2)
+    # average-case default learning parameters
+    learning_rate: float = field(kw_only=True, default=0.3)
+    """Higher values result in faster learning"""
+    exploration_prob: float = field(kw_only=True, default=0.3)
     """Higher values result in more exploration"""
     optimism: float = field(kw_only=True, default=1)
     """Higher values result in more exploration"""
@@ -49,11 +42,12 @@ class Agent:
     _position: int = field(init=False)
 
     _q: np.ndarray = field(init=False)
-    _q_deltas: deque = field(init=False)
-
     _n: np.ndarray = field(init=False)
 
     _iteration: int = field(init=False, default=0)
+
+    # convergence params
+    _q_deltas: deque = field(init=False)
     _stable_policy_iterations: int = field(init=False, default=0)
 
     def __post_init__(self):
@@ -68,9 +62,9 @@ class Agent:
 
     def reset_internals(self):
         self._q = np.zeros(shape=((self._world_size, 4)))
-        self._q_deltas = deque(maxlen=self.convergence_params.q_window_size)
         self._n = np.ones(shape=((self._world_size, 4)))
         self._iteration = 0
+        self._q_deltas = deque(maxlen=self.convergence_method.stable_window_size)
         self._stable_policy_iterations = 0
 
     def get_policy(self) -> np.ndarray:
@@ -93,7 +87,12 @@ class Agent:
             if terminated or truncated:
                 return performance
 
-    def learn(self, max_iterations: int):
+    def learn(self, max_iterations: int) -> Literal[False] | int:
+        """
+        Learn Q-values for the current world
+
+        Returns the iteration the agent converged on, or False otherwise
+        """
         learning_rate = self.learning_rate
         exploration_prob = self.exploration_prob
         optimism = self.optimism
@@ -150,63 +149,44 @@ class Agent:
 
             # check if the agent has learned
             if self.converged():
-                return True
+                return self._iteration
 
             # If the episode has ended then we can reset to start a new episode
             if terminated or truncated:
                 self.reset_world()
 
             # slowly reduce learning rate on each iteration
-            learning_rate = p_decay(
-                self.learning_rate, 0.001, self._iteration, max_iterations
-            )
+            learning_rate = e_decay(self.learning_rate, 0.1, 0.001, self._iteration)
             # quickly reduce our exploration rate
             exploration_prob = e_decay(
-                self.exploration_prob, 0.0, 0.995, self._iteration
+                self.exploration_prob, 0.0, 0.005, self._iteration
             )
 
         return False
 
     def converged(self):
-        if self.convergence_methods is None or len(self.convergence_methods) == 0:
+        if (
+            self.convergence_method.name is None
+            or self._iteration < self.convergence_method.stable_window_size
+        ):
             return False
+
         # if we found a path to the goal, there will be a reward at the start
         if np.max(self._q[0]) <= 0:
             return False
-        learned = True
-        for method in self.convergence_methods:
-            if method == "q_convergence":
-                # check if the q values have stabilized
-                if self._iteration < self.convergence_params.q_window_size:
-                    learned = False
-                if (
-                    np.average(self._q_deltas)
-                    > self.convergence_params.q_delta_threshold
-                ):
-                    learned = False
-            elif method == "policy_convergence":
-                # check if the policy is stabilized
-                if self._iteration < self.convergence_params.stable_policy_iterations:
-                    learned = False
-                if (
-                    self._stable_policy_iterations
-                    < self.convergence_params.stable_policy_iterations
-                ):
-                    learned = False
-            elif method == "test_success":
-                # check if the policy results in a success
-                success = 0
-                for _ in range(self.convergence_params.test_sample_size):
-                    self.reset_world()
-                    if self.execute().success:
-                        success += 1
-                self.reset_world()
-                if (
-                    success / self.convergence_params.test_sample_size
-                    < self.convergence_params.test_success_threshold
-                ):
-                    learned = False
-        return learned
+
+        if self.convergence_method.name == "q_convergence":
+            # check if the q values have stabilized
+            if np.average(self._q_deltas) < self.convergence_method.q_delta_threshold:
+                return True
+        elif self.convergence_method.name == "policy_convergence":
+            # check if the policy is stabilized
+            if (
+                self._stable_policy_iterations
+                > self.convergence_method.stable_window_size
+            ):
+                return True
+        return False
 
     def save_to_file(self, name: str) -> None:
         np.save(agent_file_path(name), self._q)
@@ -215,82 +195,82 @@ class Agent:
         self._q = np.load(agent_file_path(name))
 
 
-def train_agent(
-    world: Env,
-    convergence_methods: list[ConvergenceMethod] | None,
-    max_iterations: int,
-):
-    agent = Agent(
-        world,
-        convergence_methods=convergence_methods,
-    )
-
-    # Train
-    with world:
-        agent.reset_world(world, 42)
-        agent.learn(max_iterations)
-
-    return agent
-
-
 if __name__ == "__main__":
     parser = ArgumentParser()
-    # program arguments
+    # world params arguments
     parser.add_argument("--world-size", type=int, default=4)
     parser.add_argument("--random-world", action="store_true")
-    parser.add_argument("--slippery", action="store_true")
-    parser.add_argument("--success-rate", type=float, default=0.75)
+    parser.add_argument("--success-rate", type=float, default=1)
+    # agent parameters and hyperparameters
     parser.add_argument(
-        "--convergence-methods", choices=CONVERGENCE_METHODS, nargs="*", default=None
+        "--convergence-method",
+        choices=CONVERGENCE_METHOD_NAMES,
+        default=None,
     )
-    parser.add_argument("--max-iterations", type=int, default=10000)
+    parser.add_argument("--max-iterations", type=int, default=20000)
+    parser.add_argument("--learning-rate", type=float, default=None)
+    parser.add_argument("--exploration-prob", type=float, default=None)
+    parser.add_argument("--optimism", type=int, default=None)
+    parser.add_argument("--discount-factor", type=float, default=None)
+    # utils
     parser.add_argument("--visualize", action="store_true")
     parser.add_argument("--test-agent", action="store_true")
 
     args = parser.parse_args()
 
+    # extract args
     world_size: int = args.world_size
     random_world: bool = args.random_world
-    slippery: bool = args.slippery
-    success_rate: float = args.success_rate if slippery else 1
-    convergence_methods: list[ConvergenceMethod] | None = args.convergence_methods
+    success_rate: float = args.success_rate
+    slippery: bool = success_rate < 1
+
+    convergence_method: ConvergenceMethodName | None = args.convergence_method
     max_iterations: int = args.max_iterations
+    learning_rate: float | None = args.learning_rate
+    exploration_prob: float | None = args.exploration_prob
+    optimism: int | None = args.optimism
+    discount_factor: float | None = args.discount_factor
 
     print(
         f"Agent will operate in a {world_size}x{world_size}",
         "stochastic" if slippery else "deterministic",
         f"world with a success rate of {success_rate}",
     )
-    if convergence_methods is not None and len(convergence_methods) > 0:
-        print(
-            f"Agent convergence will be evaluated with {' + '.join(convergence_methods)}"
-        )
+    if convergence_method is not None:
+        print(f"Agent convergence will be evaluated with {convergence_method}")
 
     spec = create_spec(world_size, random_world)
     world = create_world(spec, slippery, success_rate)
 
-    agent = train_agent(world, convergence_methods, max_iterations)
+    agent = Agent(
+        world,
+        ConvergenceMethod(convergence_method),
+        **{
+            k: v
+            for k, v in [
+                ("learning_rate", learning_rate),
+                ("exploration_prob", exploration_prob),
+                ("optimism", optimism),
+                ("discount_factor", discount_factor),
+            ]
+            if v is not None
+        },
+    )
+
+    # Train
+    with world:
+        agent.reset_world(world, 42)
+        print("Converged?", agent.learn(max_iterations))
 
     if args.test_agent:
-        success = 0
-        bad_luck = 0
-        out_of_moves = 0
+        performance = AgentBatchPerformance()
         for i in tqdm(range(2000), "Testing agent performance"):
             world = create_world(spec, slippery, success_rate)
             with world:
                 agent.reset_world(world)
-                result = agent.execute()
-                if result.success:
-                    success += 1
-                else:
-                    if result.unlucky:
-                        bad_luck += 1
-                    elif result.out_of_moves:
-                        out_of_moves += 1
+                performance.accumulate(agent.execute())
 
-        print(f"Agent reached the goal: {success / 20}%")
-        print(f"Agent died of bad luck: {bad_luck / 20}%")
-        print(f"Agent ran out of moves: {out_of_moves / 20}%")
+        print(performance)
 
     if args.visualize:
         while True:
